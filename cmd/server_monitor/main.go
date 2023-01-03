@@ -3,10 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor"
+	"log"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 var (
@@ -15,6 +18,7 @@ var (
 
 func setupRouter() *gin.Engine {
 	r := gin.Default()
+	r.Use(gzip.Gzip(gzip.DefaultCompression))
 	r.SetTrustedProxies(nil)
 
 	authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
@@ -38,5 +42,7 @@ func init() {
 
 func main() {
 	r := setupRouter()
-	r.Run(":8080")
+	if err := r.Run(":" + strconv.FormatInt(int64(*serverPort), 10)); err != nil {
+		log.Fatal(err)
+	}
 }
