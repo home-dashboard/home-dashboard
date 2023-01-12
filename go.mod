@@ -3,17 +3,17 @@ module github.com/siaikin/home-dashboard
 go 1.19
 
 require (
-	github.com/VictoriaMetrics/fastcache v1.12.0
 	github.com/gin-contrib/gzip v0.0.6
 	github.com/gin-gonic/gin v1.8.1
 	github.com/glebarez/sqlite v1.6.0
+	github.com/jinzhu/copier v0.3.5
 	github.com/shirou/gopsutil/v3 v3.22.11
 	golang.org/x/sys v0.3.0
 	gorm.io/gorm v1.24.3
+	gorm.io/plugin/soft_delete v1.2.0
 )
 
 require (
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/glebarez/go-sqlite v1.20.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
@@ -21,9 +21,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.11.1 // indirect
 	github.com/goccy/go-json v0.10.0 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -44,7 +42,6 @@ require (
 	golang.org/x/text v0.5.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gorm.io/plugin/soft_delete v1.2.0 // indirect
 	modernc.org/libc v1.21.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.4.0 // indirect
