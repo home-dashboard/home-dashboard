@@ -1,19 +1,25 @@
-package server_monitor
+package monitor_realtime
 
 import (
+	psuCpu "github.com/shirou/gopsutil/v3/cpu"
 	psuDisk "github.com/shirou/gopsutil/v3/disk"
+	psuHost "github.com/shirou/gopsutil/v3/host"
 	psuMem "github.com/shirou/gopsutil/v3/mem"
 	psuNet "github.com/shirou/gopsutil/v3/net"
 	"golang.org/x/sys/windows"
+	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 )
 
-func GetSystemStatic() *SystemStat {
-	systemStat := SystemStat{
+func getSystemRealtimeStatic() *SystemRealtimeStat {
+	systemStat := SystemRealtimeStat{
 		Memory:  SystemMemoryStat{},
 		Network: map[string]*SystemNetworkStat{},
 		Disk:    map[string]*SystemDiskStat{},
+		Cpu:     map[string]*SystemCpuStat{},
+		Host:    SystemHostStat{},
 	}
 
 	vm, err := psuMem.VirtualMemory()
@@ -32,7 +38,7 @@ func GetSystemStatic() *SystemStat {
 		//}
 	}
 
-	ifMap := map[int]string{}
+	ifMap := map[uint32]string{}
 
 	ifs, _ := psuNet.Interfaces()
 
@@ -46,7 +52,7 @@ func GetSystemStatic() *SystemStat {
 		}
 		systemStat.Network[item.Name] = &networkStat
 
-		ifMap[item.Index] = item.Name
+		ifMap[uint32(item.Index)] = item.Name
 
 		//if err := mergo.Merge(&networkStat.InterfaceStat, item); err != nil {
 		//	fmt.Println("network interface merge failed. ", err)
@@ -82,15 +88,9 @@ func GetSystemStatic() *SystemStat {
 		}
 
 		systemStat.Disk[item.Device] = &diskStat
-		//if err := mergo.Merge(&diskStat.PartitionStat, item); err != nil {
-		//	fmt.Println("disk partition merge failed. ", err)
-		//}
 
 		usage, _ := psuDisk.Usage(item.Device)
 		diskStat.UsageStat = usage
-		//if err := mergo.Merge(&diskStat.UsageStat, usage); err != nil {
-		//	fmt.Println("disk usage merge failed. ", err)
-		//}
 	}
 
 	diskIOs, _ := psuDisk.IOCounters()
@@ -98,41 +98,25 @@ func GetSystemStatic() *SystemStat {
 	for _, item := range diskIOs {
 		diskStat := systemStat.Disk[item.Name]
 		diskStat.IoStat = item
-
-		//if err := mergo.Merge(&diskStat.IoStat, item); err != nil {
-		//	fmt.Println("disk io merge failed. ", err)
-		//}
 	}
 
+	cpuStat := SystemCpuStat{}
+
+	cpuInfos, _ := psuCpu.Info()
+
+	for _, item := range cpuInfos {
+		cpuStat.InfoStat = item
+	}
+
+	cpuStat.LogicalCounts, _ = psuCpu.Counts(true)
+	cpuStat.PhysicalCounts, _ = psuCpu.Counts(false)
+	cpuStat.Percents, _ = psuCpu.Percent(time.Second, true)
+
+	systemStat.Cpu[strconv.FormatInt(int64(cpuStat.InfoStat.CPU), 10)] = &cpuStat
+
+	systemStat.Host.InfoStat, _ = psuHost.Info()
+
 	return &systemStat
-}
-
-type SystemStat struct {
-	Memory  SystemMemoryStat              `json:"memory"`
-	Network map[string]*SystemNetworkStat `json:"network"`
-	Disk    map[string]*SystemDiskStat    `json:"disk"`
-}
-
-type SystemNetworkStat struct {
-	InterfaceStat *SystemNetworkInterfaceStat `json:"interfaceStat"`
-	IoStat        psuNet.IOCountersStat       `json:"ioStat"`
-}
-
-type SystemNetworkInterfaceStat struct {
-	Stat        psuNet.InterfaceStat `json:"stat"`
-	Type        int                  `json:"type"`
-	Description string               `json:"description"`
-}
-
-type SystemMemoryStat struct {
-	VirtualMemory *psuMem.VirtualMemoryStat `json:"virtualMemory"`
-	SwapMemory    *psuMem.SwapMemoryStat    `json:"swapMemory"`
-}
-
-type SystemDiskStat struct {
-	PartitionStat psuDisk.PartitionStat  `json:"partitionStat"`
-	UsageStat     *psuDisk.UsageStat     `json:"usageStat"`
-	IoStat        psuDisk.IOCountersStat `json:"ioStat"`
 }
 
 func getAdaptersInfo() (SystemNetworkAdapterInfoList, error) {
@@ -150,7 +134,7 @@ func getAdaptersInfo() (SystemNetworkAdapterInfoList, error) {
 
 	for ; ai != nil; ai = ai.Next {
 		nai = append(nai, SystemNetworkAdapterInfo{
-			Index:       int(ai.Index),
+			Index:       ai.Index,
 			Description: strings.Trim(string(ai.Description[:]), " \t\n\000"),
 			Type:        int(ai.Type),
 		})
@@ -159,9 +143,33 @@ func getAdaptersInfo() (SystemNetworkAdapterInfoList, error) {
 	return nai, err
 }
 
-type SystemNetworkAdapterInfo struct {
-	Index       int
-	Description string
-	Type        int
+//var SystemRealtimeStatCacheKey = &SystemRealtimeStatKey
+
+var systemStat = getSystemRealtimeStatic()
+
+var ticker *time.Ticker
+var done = make(chan bool)
+
+func StartSystemRealtimeStatLoop(d time.Duration) {
+	ticker = time.NewTicker(d)
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				systemStat = getSystemRealtimeStatic()
+			}
+		}
+	}()
 }
-type SystemNetworkAdapterInfoList []SystemNetworkAdapterInfo
+
+func StopSystemRealtimeStatLoop() {
+	ticker.Stop()
+	done <- true
+}
+
+func GetCachedSystemRealtimeStat() *SystemRealtimeStat {
+	return systemStat
+}
