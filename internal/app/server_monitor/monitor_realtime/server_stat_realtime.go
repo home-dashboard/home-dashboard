@@ -6,11 +6,8 @@ import (
 	psuHost "github.com/shirou/gopsutil/v3/host"
 	psuMem "github.com/shirou/gopsutil/v3/mem"
 	psuNet "github.com/shirou/gopsutil/v3/net"
-	"golang.org/x/sys/windows"
 	"strconv"
-	"strings"
 	"time"
-	"unsafe"
 )
 
 func getSystemRealtimeStatic() *SystemRealtimeStat {
@@ -117,30 +114,6 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 	systemStat.Host.InfoStat, _ = psuHost.Info()
 
 	return &systemStat
-}
-
-func getAdaptersInfo() (SystemNetworkAdapterInfoList, error) {
-	var nai []SystemNetworkAdapterInfo
-	var ol uint32
-	err := windows.GetAdaptersInfo(nil, &ol)
-	if err == nil || ol == 0 {
-		return nai, err
-	}
-	buf := make([]byte, int(ol))
-	ai := (*windows.IpAdapterInfo)(unsafe.Pointer(&buf[0]))
-	if err := windows.GetAdaptersInfo(ai, &ol); err != nil {
-		return nai, err
-	}
-
-	for ; ai != nil; ai = ai.Next {
-		nai = append(nai, SystemNetworkAdapterInfo{
-			Index:       ai.Index,
-			Description: strings.Trim(string(ai.Description[:]), " \t\n\000"),
-			Type:        int(ai.Type),
-		})
-	}
-
-	return nai, err
 }
 
 //var SystemRealtimeStatCacheKey = &SystemRealtimeStatKey
