@@ -22,7 +22,7 @@ func setupRouter() *gin.Engine {
 		"siaikin": "abc242244",
 	}))
 
-	authorized.GET("stat/realtime", monitor_controller.RealtimeStat)
+	authorized.GET("notification", monitor_controller.Notification)
 	authorized.GET("info/device", monitor_controller.DeviceInfo)
 
 	return r

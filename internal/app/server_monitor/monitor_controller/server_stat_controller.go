@@ -6,10 +6,6 @@ import (
 	"net/http"
 )
 
-func RealtimeStat(context *gin.Context) {
-	context.JSON(http.StatusOK, gin.H{"stat": monitor_service.GetSystemRealtimeStat()})
-}
-
 type DeviceType string
 
 const (
