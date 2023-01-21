@@ -2,6 +2,7 @@ package server_monitor
 
 import (
 	"context"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_controller"
@@ -11,32 +12,50 @@ import (
 	"time"
 )
 
-func setupRouter() *gin.Engine {
+func setupEngine() *gin.Engine {
 	r := gin.Default()
 	r.Use(gzip.Gzip(gzip.DefaultCompression))
 	if err := r.SetTrustedProxies(nil); err != nil {
 		return nil
 	}
 
-	authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
+	return r
+}
+
+func setupRouter(engine *gin.Engine) {
+	authorized := engine.Group("/v1/web", gin.BasicAuth(gin.Accounts{
 		"siaikin": "abc242244",
 	}))
 
 	authorized.GET("notification", monitor_controller.Notification)
 	authorized.GET("info/device", monitor_controller.DeviceInfo)
+}
 
-	return r
+func setupRouterMock(engine *gin.Engine) {
+	engine.Use(cors.Default())
+
+	mockRouter := engine.Group("/mock/v1/web")
+
+	mockRouter.GET("notification", monitor_controller.Notification)
+	mockRouter.GET("info/device", monitor_controller.DeviceInfo)
 }
 
 var server *http.Server
 
-func startServer(port int) {
+func startServer(port int, mock *bool) {
 	portStr := strconv.FormatInt(int64(port), 10)
 
-	router := setupRouter()
+	engine := setupEngine()
+	if *mock {
+		log.Println("server starting mock mode")
+		setupRouterMock(engine)
+	} else {
+		setupRouter(engine)
+	}
+
 	server = &http.Server{
 		Addr:    ":" + portStr,
-		Handler: router,
+		Handler: engine,
 	}
 
 	go func() {

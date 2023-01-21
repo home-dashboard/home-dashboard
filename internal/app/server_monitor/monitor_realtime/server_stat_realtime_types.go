@@ -9,20 +9,20 @@ import (
 )
 
 type SystemRealtimeStat struct {
-	Memory  SystemMemoryStat              `json:"memory"`
-	Network map[string]*SystemNetworkStat `json:"network"`
-	Disk    map[string]*SystemDiskStat    `json:"disk"`
-	Cpu     map[string]*SystemCpuStat     `json:"cpu"`
-	Host    SystemHostStat                `json:"host"`
+	Memory  SystemMemoryStat           `json:"memory"`
+	Network []*SystemNetworkStat       `json:"network"`
+	Disk    map[string]*SystemDiskStat `json:"disk"`
+	Cpu     map[string]*SystemCpuStat  `json:"cpu"`
+	Host    SystemHostStat             `json:"host"`
 }
 type SystemNetworkStat struct {
 	InterfaceStat *SystemNetworkInterfaceStat `json:"interfaceStat"`
 	IoStat        psuNet.IOCountersStat       `json:"ioStat"`
 }
 type SystemNetworkInterfaceStat struct {
-	Stat        psuNet.InterfaceStat `json:"stat"`
-	Type        int                  `json:"type"`
-	Description string               `json:"description"`
+	psuNet.InterfaceStat
+	Type        int    `json:"type"`
+	Description string `json:"description"`
 }
 type SystemMemoryStat struct {
 	VirtualMemory *psuMem.VirtualMemoryStat `json:"virtualMemory"`
@@ -34,10 +34,11 @@ type SystemDiskStat struct {
 	IoStat        psuDisk.IOCountersStat `json:"ioStat"`
 }
 type SystemCpuStat struct {
-	InfoStat       psuCpu.InfoStat
-	PhysicalCounts int
-	LogicalCounts  int
-	Percents       []float64
+	InfoStat       psuCpu.InfoStat `json:"infoStat"`
+	PhysicalCounts int             `json:"physicalCounts"`
+	LogicalCounts  int             `json:"logicalCounts"`
+	Percent        float64         `json:"percent"`
+	PerPercents    []float64       `json:"PerPercents"`
 }
 
 type SystemHostStat struct {

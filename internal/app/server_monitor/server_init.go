@@ -5,6 +5,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
+	"github.com/siaikin/home-dashboard/internal/pkg/arguments"
 	"log"
 	"time"
 )
@@ -16,9 +17,9 @@ func Initial() {
 }
 
 func Start(port int) {
-	monitor_realtime.StartSystemRealtimeStatLoop(1000 * time.Microsecond)
+	monitor_realtime.StartSystemRealtimeStatLoop(time.Second)
 
-	startServer(port)
+	startServer(port, arguments.MockMode)
 }
 
 func Stop() {
@@ -38,7 +39,7 @@ func initialDeviceTable() error {
 	for _, v := range systemStat.Network {
 		networkInfo := monitor_model.StoredSystemNetworkAdapterInfo{
 			SystemNetworkAdapterInfo: monitor_realtime.SystemNetworkAdapterInfo{
-				Index:       uint32(v.InterfaceStat.Stat.Index),
+				Index:       uint32(v.InterfaceStat.Index),
 				Type:        v.InterfaceStat.Type,
 				Description: v.InterfaceStat.Description,
 			},

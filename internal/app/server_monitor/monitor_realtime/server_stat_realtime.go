@@ -1,11 +1,13 @@
 package monitor_realtime
 
 import (
+	"github.com/jinzhu/copier"
 	psuCpu "github.com/shirou/gopsutil/v3/cpu"
 	psuDisk "github.com/shirou/gopsutil/v3/disk"
 	psuHost "github.com/shirou/gopsutil/v3/host"
 	psuMem "github.com/shirou/gopsutil/v3/mem"
 	psuNet "github.com/shirou/gopsutil/v3/net"
+	"log"
 	"strconv"
 	"time"
 )
@@ -13,7 +15,7 @@ import (
 func getSystemRealtimeStatic() *SystemRealtimeStat {
 	systemStat := SystemRealtimeStat{
 		Memory:  SystemMemoryStat{},
-		Network: map[string]*SystemNetworkStat{},
+		Network: []*SystemNetworkStat{},
 		Disk:    map[string]*SystemDiskStat{},
 		Cpu:     map[string]*SystemCpuStat{},
 		Host:    SystemHostStat{},
@@ -35,43 +37,40 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 		//}
 	}
 
-	ifMap := map[uint32]string{}
+	ifMap := map[string]int{}
 
 	ifs, _ := psuNet.Interfaces()
 
 	for _, item := range ifs {
 		networkStat := SystemNetworkStat{
 			InterfaceStat: &SystemNetworkInterfaceStat{
-				Stat:        item,
 				Type:        0,
 				Description: "",
 			},
 		}
-		systemStat.Network[item.Name] = &networkStat
+		if err := copier.Copy(networkStat.InterfaceStat, item); err != nil {
+			log.Printf("network interface copy faild, %s\n", err)
+		}
 
-		ifMap[uint32(item.Index)] = item.Name
+		systemStat.Network = append(systemStat.Network, &networkStat)
+		length := len(systemStat.Network) - 1
 
-		//if err := mergo.Merge(&networkStat.InterfaceStat, item); err != nil {
-		//	fmt.Println("network interface merge failed. ", err)
-		//}
+		ifMap[strconv.FormatInt(int64(item.Index), 10)] = length
+		ifMap[item.Name] = length
 	}
 
 	netIOs, _ := psuNet.IOCounters(true)
 
 	for _, item := range netIOs {
-		networkStat := systemStat.Network[item.Name]
+		networkStat := systemStat.Network[ifMap[item.Name]]
 
 		networkStat.IoStat = item
-		//if err := mergo.Merge(&networkStat.IoStat, item); err != nil {
-		//	fmt.Println("network io merge failed. ", err)
-		//}
 	}
 
 	ais, _ := getAdaptersInfo()
 
 	for _, item := range ais {
-		var name = ifMap[item.Index]
-		networkStat := systemStat.Network[name]
+		networkStat := systemStat.Network[ifMap[strconv.FormatInt(int64(item.Index), 10)]]
 
 		networkStat.InterfaceStat.Type = item.Type
 		networkStat.InterfaceStat.Description = item.Description
@@ -107,7 +106,9 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 
 	cpuStat.LogicalCounts, _ = psuCpu.Counts(true)
 	cpuStat.PhysicalCounts, _ = psuCpu.Counts(false)
-	cpuStat.Percents, _ = psuCpu.Percent(time.Second, true)
+	cpuStat.PerPercents, _ = psuCpu.Percent(0, true)
+	avtPercents, _ := psuCpu.Percent(0, false)
+	cpuStat.Percent = avtPercents[0]
 
 	systemStat.Cpu[strconv.FormatInt(int64(cpuStat.InfoStat.CPU), 10)] = &cpuStat
 
