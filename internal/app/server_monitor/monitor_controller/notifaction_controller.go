@@ -42,6 +42,7 @@ func Notification(context *gin.Context) {
 
 	go func() {
 		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
 
 		for {
 			select {
