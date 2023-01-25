@@ -7,6 +7,7 @@ import (
 	psuHost "github.com/shirou/gopsutil/v3/host"
 	psuMem "github.com/shirou/gopsutil/v3/mem"
 	psuNet "github.com/shirou/gopsutil/v3/net"
+	"github.com/teivah/broadcast"
 	"log"
 	"strconv"
 	"time"
@@ -14,11 +15,12 @@ import (
 
 func getSystemRealtimeStatic() *SystemRealtimeStat {
 	systemStat := SystemRealtimeStat{
-		Memory:  SystemMemoryStat{},
-		Network: []*SystemNetworkStat{},
-		Disk:    map[string]*SystemDiskStat{},
-		Cpu:     map[string]*SystemCpuStat{},
-		Host:    SystemHostStat{},
+		Memory:    SystemMemoryStat{},
+		Network:   []*SystemNetworkStat{},
+		Disk:      map[string]*SystemDiskStat{},
+		Cpu:       map[string]*SystemCpuStat{},
+		Host:      SystemHostStat{},
+		Timestamp: time.Now().UnixMilli(),
 	}
 
 	vm, err := psuMem.VirtualMemory()
@@ -117,33 +119,39 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 	return &systemStat
 }
 
-//var SystemRealtimeStatCacheKey = &SystemRealtimeStatKey
+var currentSystemStat = getSystemRealtimeStatic()
 
-var systemStat = getSystemRealtimeStatic()
-
-var ticker *time.Ticker
 var done = make(chan bool)
+var relay *broadcast.Relay[*SystemRealtimeStat]
 
 func StartSystemRealtimeStatLoop(d time.Duration) {
-	ticker = time.NewTicker(d)
+	relay = broadcast.NewRelay[*SystemRealtimeStat]()
+
+	ticker := time.NewTicker(d)
 
 	go func() {
 		for {
 			select {
 			case <-done:
+				ticker.Stop()
 				return
 			case <-ticker.C:
-				systemStat = getSystemRealtimeStatic()
+				currentSystemStat = getSystemRealtimeStatic()
+				relay.Notify(currentSystemStat)
 			}
 		}
 	}()
 }
 
 func StopSystemRealtimeStatLoop() {
-	ticker.Stop()
+	relay.Close()
 	done <- true
 }
 
+func GetListener() *broadcast.Listener[*SystemRealtimeStat] {
+	return relay.Listener(1)
+}
+
 func GetCachedSystemRealtimeStat() *SystemRealtimeStat {
-	return systemStat
+	return currentSystemStat
 }
