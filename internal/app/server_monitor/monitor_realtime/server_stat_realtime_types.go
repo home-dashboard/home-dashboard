@@ -9,11 +9,12 @@ import (
 )
 
 type SystemRealtimeStat struct {
-	Memory  SystemMemoryStat           `json:"memory"`
-	Network []*SystemNetworkStat       `json:"network"`
-	Disk    map[string]*SystemDiskStat `json:"disk"`
-	Cpu     map[string]*SystemCpuStat  `json:"cpu"`
-	Host    SystemHostStat             `json:"host"`
+	Memory    SystemMemoryStat           `json:"memory"`
+	Network   []*SystemNetworkStat       `json:"network"`
+	Disk      map[string]*SystemDiskStat `json:"disk"`
+	Cpu       map[string]*SystemCpuStat  `json:"cpu"`
+	Host      SystemHostStat             `json:"host"`
+	Timestamp int64                      `json:"timestamp"`
 }
 type SystemNetworkStat struct {
 	InterfaceStat *SystemNetworkInterfaceStat `json:"interfaceStat"`
