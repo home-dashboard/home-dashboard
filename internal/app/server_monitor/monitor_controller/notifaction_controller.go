@@ -18,7 +18,6 @@ type NotificationMessage struct {
 
 func Notification(context *gin.Context) {
 	log.Println("receive notification connection")
-	defer log.Println("notification connection finish")
 
 	context.Writer.Header().Set("Content-Type", "text/event-stream")
 	context.Writer.Header().Set("Cache-Control", "no-cache")
@@ -28,6 +27,8 @@ func Notification(context *gin.Context) {
 	context.SSEvent("message", "notification channel connected")
 
 	listener := monitor_realtime.GetListener()
+	defer listener.Close()
+
 	context.Stream(func(w io.Writer) bool {
 		defer func() {
 			err := recover()
@@ -43,4 +44,6 @@ func Notification(context *gin.Context) {
 		context.SSEvent(message.Type, message.Data)
 		return true
 	})
+
+	log.Println("notification connection finish")
 }
