@@ -17,7 +17,7 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 	systemStat := SystemRealtimeStat{
 		Memory:    SystemMemoryStat{},
 		Network:   []*SystemNetworkStat{},
-		Disk:      map[string]*SystemDiskStat{},
+		Disk:      []*SystemDiskStat{},
 		Cpu:       map[string]*SystemCpuStat{},
 		Host:      SystemHostStat{},
 		Timestamp: time.Now().UnixMilli(),
@@ -78,6 +78,8 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 		networkStat.InterfaceStat.Description = item.Description
 	}
 
+	diskIndexMap := map[string]int{}
+
 	parts, _ := psuDisk.Partitions(true)
 
 	for _, item := range parts {
@@ -85,7 +87,8 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 			PartitionStat: item,
 		}
 
-		systemStat.Disk[item.Device] = &diskStat
+		systemStat.Disk = append(systemStat.Disk, &diskStat)
+		diskIndexMap[item.Device] = len(systemStat.Disk) - 1
 
 		usage, _ := psuDisk.Usage(item.Device)
 		diskStat.UsageStat = usage
@@ -94,7 +97,7 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 	diskIOs, _ := psuDisk.IOCounters()
 
 	for _, item := range diskIOs {
-		diskStat := systemStat.Disk[item.Name]
+		diskStat := systemStat.Disk[diskIndexMap[item.Name]]
 		diskStat.IoStat = item
 	}
 
