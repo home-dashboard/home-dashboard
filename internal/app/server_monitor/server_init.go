@@ -5,7 +5,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
-	"github.com/siaikin/home-dashboard/internal/pkg/arguments"
+	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"log"
 	"time"
 )
@@ -16,10 +16,10 @@ func Initial() {
 	}
 }
 
-func Start(port int) {
+func Start(port uint) {
 	monitor_realtime.StartSystemRealtimeStatLoop(time.Second)
 
-	startServer(port, arguments.MockMode)
+	startServer(port, configuration.Config.ServerMonitor.Mock)
 }
 
 func Stop() {

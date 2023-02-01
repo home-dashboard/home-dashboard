@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor"
-	"github.com/siaikin/home-dashboard/internal/pkg/arguments"
+	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"log"
 	"os"
 	"os/signal"
@@ -16,24 +16,25 @@ var (
 	date    = "unknown"
 )
 
+var config = configuration.Config
+
 func init() {
-	if *arguments.ServerPort == -1 {
-		fmt.Printf("port %d is invalid", *arguments.ServerPort)
-		os.Exit(2)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	if config.ServerMonitor.Port == 0 {
+		log.Fatalf("port %d is invalid", config.ServerMonitor.Port)
 	}
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	fmt.Printf("version %s, commit %s, built at %s\n", version, commit, date)
+	fmt.Printf("version %s, commit %s, built at %s config %s\n", version, commit, date, config)
 
 	server_monitor.Initial()
-	server_monitor.Start(*arguments.ServerPort)
+	server_monitor.Start(config.ServerMonitor.Port)
 	defer server_monitor.Stop()
 
+	// 收到中断信号, 程序退出
 	quit := make(chan os.Signal, 1)
-
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	fmt.Println("receive exit signal")

@@ -42,11 +42,11 @@ func setupRouterMock(engine *gin.Engine) {
 
 var server *http.Server
 
-func startServer(port int, mock *bool) {
+func startServer(port uint, mock bool) {
 	portStr := strconv.FormatInt(int64(port), 10)
 
 	engine := setupEngine()
-	if *mock {
+	if mock {
 		log.Println("server starting mock mode")
 		setupRouterMock(engine)
 	} else {
