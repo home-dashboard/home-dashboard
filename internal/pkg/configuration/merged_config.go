@@ -11,7 +11,7 @@ var Config *Configuration = merge()
 // 如配置冲突则以命令行配置为准.
 func merge() *Configuration {
 	merged := Configuration{}
-	copyOption := copier.Option{IgnoreEmpty: true}
+	copyOption := copier.Option{IgnoreEmpty: true, DeepCopy: true}
 	if err := copier.CopyWithOption(&merged, &fileConfig, copyOption); err != nil {
 		log.Fatalf("file config merge failed, %s\n", err)
 	}

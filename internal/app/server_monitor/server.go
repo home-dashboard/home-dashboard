@@ -6,6 +6,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_controller"
+	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"log"
 	"net/http"
 	"strconv"
@@ -24,7 +25,7 @@ func setupEngine() *gin.Engine {
 
 func setupRouter(engine *gin.Engine) {
 	authorized := engine.Group("/v1/web", gin.BasicAuth(gin.Accounts{
-		"siaikin": "abc242244",
+		configuration.Config.ServerMonitor.Administrator.Username: configuration.Config.ServerMonitor.Administrator.Password,
 	}))
 
 	authorized.GET("notification", monitor_controller.Notification)

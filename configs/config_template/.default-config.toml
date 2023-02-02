@@ -1,3 +1,7 @@
 [serverMonitor]
 port = 8080
 mock = false
+
+[serverMonitor.administrator]
+username = "administrator"
+password = "123456"

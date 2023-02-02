@@ -16,7 +16,7 @@ func parseArguments() *Configuration {
 
 	return &Configuration{
 		ServerMonitor: ServerMonitorConfiguration{
-			Port: uint(*serverPort),
+			Port: *serverPort,
 			Mock: *mockMode,
 		}}
 }
