@@ -1,4 +1,4 @@
-package process_realtime
+package monitor_process_realtime
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 )
 
 func BenchmarkGetProcessRealtimeStatistic(b *testing.B) {
-	SortByCpuUsage()
+	SortByCpuUsage(10)
 }
 
 func TestProcessRealtimeStatLoop(t *testing.T) {

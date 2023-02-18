@@ -1,6 +1,7 @@
-package process_realtime
+package monitor_process_realtime
 
 import (
+	"fmt"
 	psuProc "github.com/shirou/gopsutil/v3/process"
 	"github.com/teivah/broadcast"
 	"log"
@@ -19,6 +20,7 @@ func getProcessRealtimeStatistic() ([]*ProcessRealtimeStat, map[int32]*ProcessNo
 	processes, _ := psuProc.Processes()
 	processStatList := make([]*ProcessRealtimeStat, 0, len(processes))
 
+	fillFailProcessIds := make([]int32, 0)
 	for _, proc := range processes {
 		var err error
 		if ignoreProcess(proc) {
@@ -44,85 +46,108 @@ func getProcessRealtimeStatistic() ([]*ProcessRealtimeStat, map[int32]*ProcessNo
 
 		stat := &ProcessRealtimeStat{}
 
-		fillProcessStat(stat, proc)
+		errs := fillProcessStat(stat, proc)
+		if len(errs) > 0 {
+			fillFailProcessIds = append(fillFailProcessIds, stat.Pid)
+		}
 
 		processStatList = append(processStatList, stat)
 	}
 
+	if len(fillFailProcessIds) > 0 {
+		log.Printf("fill failed process ids: %d\n", fillFailProcessIds)
+	}
 	return processStatList, relationshipMap
 }
 
 // fillProcessStat 填充 *ProcessRealtimeStat 指向的数据结构, 即使某个属性填充失败也不会中断执行.
 // 填充失败的属性将保持该属性对应的默认值.
-func fillProcessStat(stat *ProcessRealtimeStat, proc *psuProc.Process) {
+func fillProcessStat(stat *ProcessRealtimeStat, proc *psuProc.Process) []error {
+	errs := make([]error, 0)
+
 	stat.Pid = proc.Pid
 
 	if percent, err := proc.MemoryPercent(); err != nil {
-		log.Printf("process get memory percent failed, %s\n", err)
+		errs = append(errs, fmt.Errorf("process get memory percent failed, %s\n", err))
 	} else {
 		stat.MemoryPercent = percent
 	}
 
 	if percent, err := proc.Percent(0); err != nil {
-		log.Printf("process get cpu percent failed, %s\n", err)
+		errs = append(errs, fmt.Errorf("process get cpu percent failed, %s\n", err))
 	} else {
 		count := runtime.NumCPU()
 		stat.CpuPercent = percent / float64(count)
 	}
 
 	if size, err := proc.NumThreads(); err != nil {
-		log.Printf("process get thread size failed, %s\n", err)
+		errs = append(errs, fmt.Errorf("process get thread size failed, %s\n", err))
 	} else {
 		stat.ThreadSize = size
 	}
 
 	if name, err := proc.Name(); err != nil {
-		log.Printf("process get name failed, %s\n", err)
+		errs = append(errs, fmt.Errorf("process get name failed, %s\n", err))
 	} else {
 		stat.Name = name
 	}
 
 	if createTime, err := proc.CreateTime(); err != nil {
-		log.Printf("process get create time failed, %s\n", err)
+		errs = append(errs, fmt.Errorf("process get create time failed, %s\n", err))
 	} else {
 		stat.CreateTime = createTime
 	}
 
 	if username, err := proc.Username(); err != nil {
-		log.Printf("process get username failed, %s\n", err)
+		errs = append(errs, fmt.Errorf("process get username failed, %s\n", err))
 	} else {
 		stat.Username = username
 	}
+
+	return errs
 }
 
-func GetRealtimeStat() ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
-	return processStatList, relationship
+func GetRealtimeStat(max int) ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
+	length := len(processStatList)
+
+	if length < max {
+		max = length
+	}
+	return processStatList[0:max], relationship
 }
 
-func SortByMemoryUsage() ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
-	copied := make([]*ProcessRealtimeStat, len(processStatList))
+func SortByMemoryUsage(max int) ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
+	length := len(processStatList)
+	copied := make([]*ProcessRealtimeStat, length)
 	copy(copied, processStatList)
 
 	sort.SliceStable(copied, func(i, j int) bool {
 		return copied[i].MemoryPercent > copied[j].MemoryPercent
 	})
 
-	return copied, relationship
+	if length < max {
+		max = length
+	}
+	return copied[0:max], relationship
 }
 
-func SortByCpuUsage() ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
-	copied := make([]*ProcessRealtimeStat, len(processStatList))
+func SortByCpuUsage(max int) ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
+	length := len(processStatList)
+	copied := make([]*ProcessRealtimeStat, length)
 	copy(copied, processStatList)
 
 	sort.SliceStable(copied, func(i, j int) bool {
 		return copied[i].CpuPercent > copied[j].CpuPercent
 	})
 
-	return copied, relationship
+	if length < max {
+		max = length
+	}
+	return copied[0:max], relationship
 }
 
 var done = make(chan bool)
-var relay = broadcast.NewRelay[*map[int32]*ProcessNode]()
+var relay = broadcast.NewRelay[*[]*ProcessRealtimeStat]()
 
 func StartRealtimeLoop(d time.Duration) {
 	ticker := time.NewTicker(d)
@@ -135,7 +160,7 @@ func StartRealtimeLoop(d time.Duration) {
 				return
 			case <-ticker.C:
 				processStatList, relationship = getProcessRealtimeStatistic()
-				relay.Notify(&relationship)
+				relay.Notify(&processStatList)
 			}
 		}
 	}()
@@ -146,6 +171,6 @@ func StopRealtimeLoop() {
 	done <- true
 }
 
-func GetListener() *broadcast.Listener[*map[int32]*ProcessNode] {
+func GetListener() *broadcast.Listener[*[]*ProcessRealtimeStat] {
 	return relay.Listener(1)
 }

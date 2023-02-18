@@ -1,4 +1,4 @@
-package process_realtime
+package monitor_process_realtime
 
 import "encoding/json"
 
