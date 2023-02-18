@@ -33,15 +33,21 @@ func connectDataBase() error {
 	return nil
 }
 
-func OpenOrCreateDB() (*gorm.DB, error) {
+func openOrCreateDB() error {
 	if err := connectDataBase(); err != nil {
-		log.Panicf("data base connecting failed, %s", err)
-		return nil, err
+		log.Printf("data base connecting failed, %s", err)
+		return err
 	}
 
-	return db, nil
+	return nil
 }
 
 func GetDB() *gorm.DB {
+	if db == nil {
+		if err := openOrCreateDB(); err != nil {
+			log.Fatalf("open db failed, %s", err)
+		}
+	}
+
 	return db
 }

@@ -28,11 +28,7 @@ func Stop() {
 }
 
 func initialDeviceTable() error {
-	db, err := monitor_db.OpenOrCreateDB()
-	if err != nil {
-		log.Printf("open db failed, %s", err)
-		return err
-	}
+	db := monitor_db.GetDB()
 
 	systemStat := monitor_realtime.GetCachedSystemRealtimeStat()
 
