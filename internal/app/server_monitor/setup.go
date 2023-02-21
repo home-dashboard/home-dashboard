@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_controller"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"github.com/siaikin/home-dashboard/internal/pkg/sessions"
@@ -42,6 +43,7 @@ func setupEngine() *gin.Engine {
 
 func setupRouter(router *gin.RouterGroup) {
 	router.POST("auth", monitor_controller.Authorize)
+	router.POST("unauth", monitor_controller.Unauthorize)
 
 	authorized := router.Group("", authority.AuthorizeMiddleware())
 
@@ -70,6 +72,7 @@ func startServer(port uint, mock bool) {
 					Password: configuration.Config.ServerMonitor.Administrator.Username,
 					Role:     monitor_model.RoleAdministrator,
 				})
+				session.Set(notification.CollectStatConfigSessionKey, notification.DefaultCollectStatConfig())
 
 				if err := session.Save(); err != nil {
 					log.Fatalf("save mock session failed, %s\n", err)
