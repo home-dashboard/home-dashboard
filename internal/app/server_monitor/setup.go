@@ -47,7 +47,8 @@ func setupRouter(router *gin.RouterGroup) {
 
 	authorized := router.Group("", authority.AuthorizeMiddleware())
 
-	authorized.GET("notification", monitor_controller.Notification)
+	authorized.GET("notification", notification.Notification)
+	authorized.POST("notification/collect", notification.CollectStat)
 	authorized.GET("info/device", monitor_controller.DeviceInfo)
 }
 
