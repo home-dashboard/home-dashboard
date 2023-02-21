@@ -25,6 +25,7 @@ func connectDataBase() error {
 		&monitor_model.StoredSystemNetworkAdapterInfo{},
 		&monitor_model.StoredSystemDiskInfo{},
 		&monitor_model.StoredSystemCpuInfo{},
+		&monitor_model.User{},
 	); err != nil {
 		log.Panicf("data base initial failed, %s", err)
 		return err

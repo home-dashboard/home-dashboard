@@ -3,15 +3,8 @@ package monitor_model
 import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
 	"github.com/siaikin/home-dashboard/internal/pkg/database_types"
-	"gorm.io/plugin/soft_delete"
 )
 
-type Model struct {
-	ID        uint                  `gorm:"primarykey"json:"id"`
-	CreatedAt int64                 `gorm:"autoUpdateTime:milli"json:"createdAt"`
-	UpdatedAt int64                 `gorm:"autoUpdateTime:milli"json:"updatedAt"`
-	DeletedAt soft_delete.DeletedAt `gorm:"softDelete:milli"json:"deletedAt"`
-}
 type StoredSystemStat struct {
 	Model
 	AdapterStat database_types.JSON

@@ -1,82 +1,109 @@
 package server_monitor
 
 import (
-	"context"
-	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/gzip"
-	"github.com/gin-gonic/gin"
-	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_controller"
+	"errors"
+	"github.com/jinzhu/copier"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_process_realtime"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"log"
-	"net/http"
-	"strconv"
 	"time"
 )
 
-func setupEngine() *gin.Engine {
-	r := gin.Default()
-	r.Use(gzip.Gzip(gzip.DefaultCompression))
-	if err := r.SetTrustedProxies(nil); err != nil {
-		return nil
+func Initial() {
+	if err := initialDeviceTable(); err != nil {
+		panic(err)
 	}
 
-	return r
-}
-
-func setupRouter(engine *gin.Engine) {
-	authorized := engine.Group("/v1/web", gin.BasicAuth(gin.Accounts{
-		configuration.Config.ServerMonitor.Administrator.Username: configuration.Config.ServerMonitor.Administrator.Password,
-	}))
-
-	authorized.GET("notification", monitor_controller.Notification)
-	authorized.GET("info/device", monitor_controller.DeviceInfo)
-}
-
-func setupRouterMock(engine *gin.Engine) {
-	engine.Use(cors.Default())
-
-	mockRouter := engine.Group("/mock/v1/web")
-
-	mockRouter.GET("notification", monitor_controller.Notification)
-	mockRouter.GET("info/device", monitor_controller.DeviceInfo)
-}
-
-var server *http.Server
-
-func startServer(port uint, mock bool) {
-	portStr := strconv.FormatInt(int64(port), 10)
-
-	engine := setupEngine()
-	if mock {
-		log.Println("server starting mock mode")
-		setupRouterMock(engine)
-	} else {
-		setupRouter(engine)
+	if err := generateAdministratorUser(); err != nil {
+		panic(err)
 	}
+}
 
-	server = &http.Server{
-		Addr:    ":" + portStr,
-		Handler: engine,
-	}
+func Start(port uint) {
+	monitor_realtime.StartSystemRealtimeStatLoop(time.Second)
+	monitor_process_realtime.StartRealtimeLoop(time.Second * 8)
 
-	go func() {
-		log.Printf("server listening and serving on port %s\n", portStr)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+	startServer(port, configuration.Config.ServerMonitor.Mock)
+}
+
+func Stop() {
+	monitor_realtime.StopSystemRealtimeStatLoop()
+	monitor_process_realtime.StopRealtimeLoop()
+
+	stopServer(5 * time.Second)
+}
+
+func initialDeviceTable() error {
+	db := monitor_db.GetDB()
+
+	systemStat := monitor_realtime.GetCachedSystemRealtimeStat()
+
+	for _, v := range systemStat.Network {
+		networkInfo := monitor_model.StoredSystemNetworkAdapterInfo{
+			SystemNetworkAdapterInfo: monitor_realtime.SystemNetworkAdapterInfo{
+				Index:       uint32(v.InterfaceStat.Index),
+				Type:        v.InterfaceStat.Type,
+				Description: v.InterfaceStat.Description,
+			},
 		}
-	}()
-}
 
-func stopServer(timeout time.Duration) {
-	// 优雅地关闭进程, 5秒后将强制结束进程
-	// ctx 用于通知服务器有5秒来结束当前正在处理的请求
-	// https://github.com/gin-gonic/examples/blob/master/graceful-shutdown/graceful-shutdown/notify-without-context/server.go
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalln("server forced to shutdown: ", err)
+		db.Where(map[string]interface{}{"Index": networkInfo.Index}).Attrs(networkInfo).FirstOrCreate(&networkInfo)
 	}
 
-	log.Println("server graceful shutdown")
+	for _, v := range systemStat.Cpu {
+		cpuInfo := monitor_model.StoredSystemCpuInfo{}
+		if err := copier.Copy(&cpuInfo, &v.InfoStat); err != nil {
+			log.Printf("cpoy failed, %s", err)
+			return err
+		}
+
+		db.Where(map[string]interface{}{"CPU": cpuInfo.CPU}).Attrs(cpuInfo).FirstOrCreate(&cpuInfo)
+	}
+
+	for _, v := range systemStat.Disk {
+		diskInfo := monitor_model.StoredSystemDiskInfo{}
+		if err := copier.Copy(&diskInfo, &v.PartitionStat); err != nil {
+			log.Printf("cpoy failed, %s", err)
+			return err
+		}
+
+		db.Where(map[string]interface{}{"Mountpoint": diskInfo.Mountpoint}).Attrs(diskInfo).FirstOrCreate(&diskInfo)
+	}
+
+	return nil
+}
+
+// 从配置文件中的管理员配置中生成管理员账号.
+func generateAdministratorUser() error {
+	administrator := configuration.Config.ServerMonitor.Administrator
+
+	user, err := monitor_service.GetUser(monitor_model.User{Role: monitor_model.RoleAdministrator})
+
+	// 管理员账号密码不一致则删除账号并重新创建管理员账号
+	if err == nil && (user.Username != administrator.Username || user.Password != administrator.Password) {
+		if err := monitor_service.DeleteUser(*user); err != nil {
+			return err
+		}
+
+		// 给 err 赋值以进入账号创建分支
+		err = errors.New("")
+	}
+
+	if err != nil {
+		adminUser := monitor_model.User{
+			Username: administrator.Username,
+			Password: administrator.Password,
+			Role:     monitor_model.RoleAdministrator,
+		}
+
+		if err := monitor_service.CreateUser(adminUser); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
