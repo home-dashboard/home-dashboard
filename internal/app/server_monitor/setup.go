@@ -10,6 +10,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"github.com/siaikin/home-dashboard/internal/pkg/sessions"
 	"log"
@@ -33,8 +34,22 @@ func setupEngine() *gin.Engine {
 
 		errs := c.Errors
 		errSize := len(errs)
+
 		if errSize > 0 {
-			c.JSON(c.Writer.Status(), gin.H{"error": errs[errSize-1]})
+			err := errs[errSize-1]
+
+			switch err.Err.(type) {
+			case comfy_errors.ResponseError:
+				resErr := err.Err.(comfy_errors.ResponseError)
+
+				_ = err.SetMeta(map[string]interface{}{
+					"code":    resErr.Code,
+					"message": resErr.Message,
+				})
+			default:
+			}
+
+			c.JSON(c.Writer.Status(), err)
 		}
 	})
 
