@@ -10,20 +10,40 @@ import (
 	"time"
 )
 
-//var processMap = make(map[int32]*psuProc.Process)
+var processMap = make(map[int32]*psuProc.Process)
 
 var processStatList, relationship = getProcessRealtimeStatistic()
 
 func getProcessRealtimeStatistic() ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
 	relationshipMap := make(map[int32]*ProcessNode)
 
-	processes, _ := psuProc.Processes()
-	processStatList := make([]*ProcessRealtimeStat, 0, len(processes))
+	pids, _ := psuProc.Pids()
+	processStatList := make([]*ProcessRealtimeStat, 0, len(pids))
 
 	fillFailProcessIds := make([]int32, 0)
-	for _, proc := range processes {
+
+	for _, pid := range pids {
+		var proc *psuProc.Process
 		var err error
-		if ignoreProcess(proc) {
+
+		if processMap[pid] != nil {
+			proc = processMap[pid]
+		} else {
+			proc, err = psuProc.NewProcess(pid)
+			processMap[pid] = proc
+
+			if err != nil {
+				log.Printf("create process instance failed, %s\n", err)
+				continue
+			}
+		}
+
+		if running, err := proc.IsRunning(); !running || err != nil {
+			delete(processMap, pid)
+			continue
+		}
+
+		if ignoredProcess(proc) {
 			continue
 		}
 
