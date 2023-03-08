@@ -100,11 +100,11 @@ func fillProcessStat(stat *ProcessRealtimeStat, proc *psuProc.Process) []error {
 		stat.CpuPercent = percent / float64(count)
 	}
 
-	if size, err := proc.NumThreads(); err != nil {
-		errs = append(errs, fmt.Errorf("process get thread size failed, %s\n", err))
-	} else {
-		stat.ThreadSize = size
-	}
+	//if size, err := proc.NumThreads(); err != nil {
+	//	errs = append(errs, fmt.Errorf("process get thread size failed, %s\n", err))
+	//} else {
+	//	stat.ThreadSize = size
+	//}
 
 	if name, err := proc.Name(); err != nil {
 		errs = append(errs, fmt.Errorf("process get name failed, %s\n", err))

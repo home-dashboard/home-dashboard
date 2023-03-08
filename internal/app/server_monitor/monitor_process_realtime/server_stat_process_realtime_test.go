@@ -6,7 +6,7 @@ import (
 )
 
 func BenchmarkGetProcessRealtimeStatistic(b *testing.B) {
-	SortByCpuUsage(10)
+	getProcessRealtimeStatistic()
 }
 
 func TestProcessRealtimeStatLoop(t *testing.T) {

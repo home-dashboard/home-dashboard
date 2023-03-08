@@ -8,7 +8,7 @@ type ProcessRealtimeStat struct {
 	Username      string  `json:"username"`
 	CpuPercent    float64 `json:"cpuPercent"`
 	MemoryPercent float32 `json:"memoryPercent"`
-	ThreadSize    int32   `json:"ThreadSize"`
+	ThreadSize    int32   `json:"ThreadSize"` // Deprecated: gopsutil 对线程个数查询的方法耗时较长, 且该属性目前没有如何用例, 因此弃用.
 	CreateTime    int64   `json:"createTime"`
 }
 

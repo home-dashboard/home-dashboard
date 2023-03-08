@@ -25,7 +25,7 @@ func Initial() {
 
 func Start(port uint) {
 	monitor_realtime.StartSystemRealtimeStatLoop(time.Second)
-	monitor_process_realtime.StartRealtimeLoop(time.Second * 8)
+	monitor_process_realtime.StartRealtimeLoop(time.Second)
 
 	startServer(port, configuration.Config.ServerMonitor.Mock)
 }
