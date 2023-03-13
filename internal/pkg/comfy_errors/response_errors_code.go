@@ -5,4 +5,5 @@ type ResponseErrorCode uint8
 const (
 	UnknownError ResponseErrorCode = iota
 	LoginRequestError
+	SessionStoreError
 )
