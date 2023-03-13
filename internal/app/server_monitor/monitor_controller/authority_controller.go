@@ -2,9 +2,9 @@ package monitor_controller
 
 import (
 	"github.com/gin-contrib/sessions"
+	ginSessions "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
-	"github.com/siaikin/home-dashboard/internal/app/server_monitor/notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"net/http"
@@ -32,12 +32,10 @@ func Authorize(context *gin.Context) {
 	session := sessions.Default(context)
 
 	session.Set(authority.InfoKey, user)
-	session.Set(notification.CollectStatConfigSessionKey, notification.DefaultCollectStatConfig())
-
-	if err := session.Save(); err != nil {
-		_ = context.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
+	session.Options(ginSessions.Options{
+		// 24 hours
+		MaxAge: 60 * 60 * 24,
+	})
 }
 
 // Unauthorize 登出并删除 session

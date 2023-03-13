@@ -12,15 +12,15 @@ import (
 )
 
 var (
-	defaultConfigFilename = ".config.toml"
+	DefaultConfigFilename = ".config.toml"
 )
 
 var fileConfig *Configuration = generateOrReadConfigFile()
 
 // 读取当前目录下名为 config.toml 或 .config.toml 的配置文件.
-// 如果在当前目录下未找到所需的配置文件则创建一个内容为 defaultConfig , 文件名为 defaultConfigFilename 的配置文件.
+// 如果在当前目录下未找到所需的配置文件则创建一个内容为 [config_template.ConfigTemplateToml] , 文件名为 [DefaultConfigFilename] 的配置文件.
 func generateOrReadConfigFile() *Configuration {
-	filePath := path.Join(utils.WorkspaceDir, defaultConfigFilename)
+	filePath := path.Join(utils.WorkspaceDir, DefaultConfigFilename)
 
 	if !utils.FileExist(filePath) {
 		file, err := os.Create(filePath)

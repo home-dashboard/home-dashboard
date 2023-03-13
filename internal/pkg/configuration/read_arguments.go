@@ -6,7 +6,7 @@ import (
 
 var (
 	serverPort = flag.Uint("port", 0, "serve port")
-	mockMode   = flag.Bool("mock", false, "enable mock mode")
+	devMode    = flag.Bool("development", false, "enable development mode")
 )
 
 var argumentsConfig *Configuration = parseArguments()
@@ -16,7 +16,7 @@ func parseArguments() *Configuration {
 
 	return &Configuration{
 		ServerMonitor: ServerMonitorConfiguration{
-			Port: *serverPort,
-			Mock: *mockMode,
+			Port:        *serverPort,
+			Development: ServerMonitorDevelopmentConfiguration{Enable: *devMode},
 		}}
 }

@@ -7,7 +7,6 @@ import (
 	ginSessions "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_controller"
-	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
@@ -19,15 +18,15 @@ import (
 	"time"
 )
 
-func setupEngine() *gin.Engine {
+func setupEngine(mock bool) *gin.Engine {
 	r := gin.Default()
-	r.Use(gzip.Gzip(gzip.DefaultCompression))
-	r.Use(sessions.GetSessionMiddleware())
-
 	if err := r.SetTrustedProxies(nil); err != nil {
 		log.Printf("server set proxy failed, %s\n", err)
 		return nil
 	}
+
+	r.Use(gzip.Gzip(gzip.DefaultCompression))
+	r.Use(sessions.GetSessionMiddleware())
 
 	r.Use(func(c *gin.Context) {
 		c.Next()
@@ -53,6 +52,56 @@ func setupEngine() *gin.Engine {
 		}
 	})
 
+	r.Use(func(c *gin.Context) {
+		c.Next()
+
+		session := ginSessions.Default(c)
+
+		if err := session.Save(); err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
+			log.Printf("save session failed, %s\n", err)
+		}
+	})
+
+	if mock {
+		log.Println("server starting mock mode")
+
+		r.Use(cors.New(cors.Config{
+			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+			AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "x-requested-with"},
+			AllowCredentials: true,
+			MaxAge:           12 * time.Hour,
+			AllowOrigins:     configuration.Config.ServerMonitor.Development.Cors.AllowOrigins,
+		}))
+
+		// mock 模式下自动添加 session
+		r.Use(func(context *gin.Context) {
+			session := ginSessions.Default(context)
+
+			if session.Get(authority.InfoKey) == nil {
+				context.Next()
+
+				// 仅在未登录的第一次请求设置 Options (通过是否存在 authority.InfoKey 判断登录).
+				// 之后的 session 内容修改将导致响应加上 Set-Cookie 标头, 触发浏览器重新设置 Cookie.
+				// 但后续的 Set-Cookie 没有设置下方的 Options , 在跨域场景下无法正确设置 Cookie ([Cors 第三方 Cookie]).
+				//
+				// [Cors 第三方 Cookie]: https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CORS#%E8%8B%A5%E5%B9%B2%E8%AE%BF%E9%97%AE%E6%8E%A7%E5%88%B6%E5%9C%BA%E6%99%AF
+				//
+				// todo [ginSessions.Options] 多次调用时支持合并参数. 避免多次调用时互相覆盖 Options 参数.
+				// todo [ginSessions.Session] 支持获取是否修改状态. 设置 Options 参数会通知浏览器更新 Cookie. 未修改时不需要设置 Options 参数, 可以避免无意义的更新 Cookie 动作.
+				session.Options(ginSessions.Options{
+					Path:     "/",
+					SameSite: http.SameSiteNoneMode,
+					Secure:   true,
+					// 24 hours
+					MaxAge: 60 * 60 * 24,
+				})
+			} else {
+				context.Next()
+			}
+		})
+
+	}
 	return r
 }
 
@@ -72,32 +121,7 @@ var server *http.Server
 func startServer(port uint, mock bool) {
 	portStr := strconv.FormatInt(int64(port), 10)
 
-	engine := setupEngine()
-	if mock {
-		log.Println("server starting mock mode")
-		engine.Use(cors.Default())
-
-		// mock 模式下自动添加 session
-		engine.Use(func(context *gin.Context) {
-			session := ginSessions.Default(context)
-
-			if session.Get(authority.InfoKey) == nil {
-				log.Println("auto generate mock session")
-				session.Set(authority.InfoKey, monitor_model.User{
-					Username: configuration.Config.ServerMonitor.Administrator.Username,
-					Password: configuration.Config.ServerMonitor.Administrator.Username,
-					Role:     monitor_model.RoleAdministrator,
-				})
-				session.Set(notification.CollectStatConfigSessionKey, notification.DefaultCollectStatConfig())
-
-				if err := session.Save(); err != nil {
-					log.Fatalf("save mock session failed, %s\n", err)
-				}
-			}
-
-			context.Next()
-		})
-	}
+	engine := setupEngine(mock)
 
 	setupRouter(engine.Group("/v1/web"))
 

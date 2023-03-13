@@ -5,3 +5,9 @@ mock = false
 [serverMonitor.administrator]
 username = "administrator"
 password = "123456"
+
+[serverMonitor.development]
+enable = false
+
+[serverMonitor.development.cors]
+allowOrigins = []
