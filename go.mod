@@ -3,20 +3,21 @@ module github.com/siaikin/home-dashboard
 go 1.19
 
 require (
+	github.com/BurntSushi/toml v1.2.1
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-contrib/gzip v0.0.6
+	github.com/gin-contrib/sessions v0.0.5
 	github.com/gin-gonic/gin v1.8.1
 	github.com/glebarez/sqlite v1.6.0
 	github.com/jinzhu/copier v0.3.5
 	github.com/shirou/gopsutil/v3 v3.22.11
-	golang.org/x/sys v0.3.0
+	github.com/teivah/broadcast v0.1.0
+	golang.org/x/sys v0.5.0
 	gorm.io/gorm v1.24.3
 	gorm.io/plugin/soft_delete v1.2.0
 )
 
 require (
-	github.com/BurntSushi/toml v1.2.1 // indirect
-	github.com/gin-contrib/sessions v0.0.5 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/glebarez/go-sqlite v1.20.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
@@ -39,7 +40,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
-	github.com/teivah/broadcast v0.1.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.0 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect

@@ -158,3 +158,17 @@ func GetListener() *broadcast.Listener[*SystemRealtimeStat] {
 func GetCachedSystemRealtimeStat() *SystemRealtimeStat {
 	return currentSystemStat
 }
+
+func GetCpuPercent() float64 {
+	percent := float64(0)
+
+	for _, item := range currentSystemStat.Cpu {
+		percent += item.Percent
+	}
+
+	return percent
+}
+
+func GetMemoryPercent() float64 {
+	return currentSystemStat.Memory.VirtualMemory.UsedPercent
+}

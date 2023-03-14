@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 )
 
-const CollectStatConfigSessionKey = "collectStatConfig"
-
 type ProcessStatSortField = string
 
 const (
@@ -17,14 +15,14 @@ const (
 
 type CollectStatConfig struct {
 	System struct {
-		Enable bool `form:"enable"`
-	} `form:"system"`
+		Enable bool `json:"enable" form:"enable"`
+	} `json:"system" form:"system"`
 	Process struct {
-		Enable    bool                 `form:"enable"`
-		SortField ProcessStatSortField `form:"field"`
-		SortOrder bool                 `form:"order"`
-		Max       int                  `form:"max"`
-	}
+		Enable    bool                 `json:"enable" form:"enable"`
+		SortField ProcessStatSortField `json:"sortField" form:"field"`
+		SortOrder bool                 `json:"sortOrder" form:"order"`
+		Max       int                  `json:"max" form:"max"`
+	} `json:"process" form:"process"`
 }
 
 func (c CollectStatConfig) String() string {
@@ -39,15 +37,13 @@ func (c CollectStatConfig) String() string {
 func DefaultCollectStatConfig() CollectStatConfig {
 	return CollectStatConfig{
 		System: struct {
-			Enable bool `form:"enable"`
-		}{
-			Enable: true,
-		},
+			Enable bool `json:"enable" form:"enable"`
+		}{Enable: true},
 		Process: struct {
-			Enable    bool                 `form:"enable"`
-			SortField ProcessStatSortField `form:"field"`
-			SortOrder bool                 `form:"order"`
-			Max       int                  `form:"max"`
+			Enable    bool                 `json:"enable" form:"enable"`
+			SortField ProcessStatSortField `json:"sortField" form:"field"`
+			SortOrder bool                 `json:"sortOrder" form:"order"`
+			Max       int                  `json:"max" form:"max"`
 		}{},
 	}
 }
