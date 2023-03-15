@@ -1,27 +1,22 @@
 package cache
 
-import cache2 "github.com/patrickmn/go-cache"
-
-var memoryCache = cache2.New(cache2.NoExpiration, 0)
-
 type Cache struct {
-	*cache2.Cache
-	name string
+	Name  string
+	items map[string]any
 }
 
-func (c *Cache) Set(key string, config any) {
-	memoryCache.SetDefault(key, config)
+func (c *Cache) Set(key string, value any) {
+	c.items[key] = value
 }
 
 func (c *Cache) Get(key string) (any, bool) {
-	return memoryCache.Get(key)
+	value, ok := c.items[key]
+	return value, ok
 }
 
 func New(name string) *Cache {
-	cache := cache2.New(cache2.NoExpiration, 0)
-
 	return &Cache{
-		cache,
-		name,
+		Name:  name,
+		items: map[string]any{},
 	}
 }
