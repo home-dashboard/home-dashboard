@@ -12,6 +12,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"github.com/siaikin/home-dashboard/internal/pkg/sessions"
+	"github.com/siaikin/home-dashboard/web/web_submodules"
 	"log"
 	"net/http"
 	"strconv"
@@ -74,8 +75,25 @@ func setupEngine(mock bool) *gin.Engine {
 			AllowOrigins:     configuration.Config.ServerMonitor.Development.Cors.AllowOrigins,
 		}))
 
+	}
+
+	return r
+}
+
+func setupRouter(router *gin.RouterGroup, mock bool) {
+	router.POST("auth", monitor_controller.Authorize)
+	router.POST("unauth", monitor_controller.Unauthorize)
+
+	authorized := router.Group("", authority.AuthorizeMiddleware())
+
+	authorized.GET("notification", notification.Notification)
+	authorized.POST("notification/collect", notification.ModifyCollectStat)
+	authorized.GET("notification/collect", notification.GetCollectStat)
+	authorized.GET("info/device", monitor_controller.DeviceInfo)
+
+	if mock {
 		// mock 模式下自动添加 session
-		r.Use(func(context *gin.Context) {
+		router.Use(func(context *gin.Context) {
 			session := ginSessions.Default(context)
 
 			if session.Get(authority.InfoKey) == nil {
@@ -102,19 +120,6 @@ func setupEngine(mock bool) *gin.Engine {
 		})
 
 	}
-	return r
-}
-
-func setupRouter(router *gin.RouterGroup) {
-	router.POST("auth", monitor_controller.Authorize)
-	router.POST("unauth", monitor_controller.Unauthorize)
-
-	authorized := router.Group("", authority.AuthorizeMiddleware())
-
-	authorized.GET("notification", notification.Notification)
-	authorized.POST("notification/collect", notification.ModifyCollectStat)
-	authorized.GET("notification/collect", notification.GetCollectStat)
-	authorized.GET("info/device", monitor_controller.DeviceInfo)
 }
 
 var server *http.Server
@@ -124,7 +129,12 @@ func startServer(port uint, mock bool) {
 
 	engine := setupEngine(mock)
 
-	setupRouter(engine.Group("/v1/web"))
+	setupRouter(engine.Group("/v1/web"), mock)
+
+	// 嵌入 home-dashboard-web-ui 静态资源
+	if err := web_submodules.EmbedHomeDashboardWebUI(engine); err != nil {
+		log.Fatalf("embed home-dashboard-web-ui failed, %s\n", err)
+	}
 
 	server = &http.Server{
 		Addr:    ":" + portStr,

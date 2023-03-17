@@ -1,0 +1,3 @@
+[submodule "web/web_submodules/home-dashboard-web-ui"]
+	path = web/web_submodules/home-dashboard-web-ui
+	url = git@github.com:home-dashboard/home-dashboard-web-ui.git
