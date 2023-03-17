@@ -15,24 +15,48 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - run: git fetch --force --tags
-      - uses: actions/setup-go@v3
-        with:
-          go-version: '>=1.19.5'
-          cache: true
-      # More assembly might be required: Docker logins, GPG, etc. It all depends
-      # on your needs.
-      - uses: goreleaser/goreleaser-action@v4
-        with:
-          # either 'goreleaser' (default) or 'goreleaser-pro':
-          distribution: goreleaser
-          version: latest
-          args: release --rm-dist
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Your GoReleaser Pro key, if you are using the 'goreleaser-pro'
-          # distribution:
-          # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+    # checkout
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        # checkout home-dashboard-web-ui
+        submodules: recursive
+        ssh-key: ${{ secrets.DESKTOP_STC66QQ_SSH_KEY }}
+    - run: git fetch --force --tags
+    # setup environment
+    - name: Setup Golang Environment
+      uses: actions/setup-go@v3
+      with:
+        go-version: '>=1.19.5'
+        cache: true
+
+    # setup web environment
+    - name: Setup PNPM Environment
+      uses: pnpm/action-setup@v2.2.4
+      with:
+        version: 7
+    - name: Setup Node.js Environment
+      uses: actions/setup-node@v3.6.0
+#      with:
+#        cache: 'pnpm'
+    - name: Build Web UI
+      working-directory: web/web_submodules/home-dashboard-web-ui
+      run: |
+        # 显式设置安装时不更新 lockfile
+        pnpm install --frozen-lockfile
+        pnpm run build
+
+    # More assembly might be required: Docker logins, GPG, etc. It all depends
+    # on your needs.
+    - uses: goreleaser/goreleaser-action@v4
+      with:
+        # either 'goreleaser' (default) or 'goreleaser-pro':
+        distribution: goreleaser
+        version: latest
+        args: release --rm-dist
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Your GoReleaser Pro key, if you are using the 'goreleaser-pro'
+        # distribution:
+        # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
