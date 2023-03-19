@@ -53,6 +53,8 @@ type ServerMonitorThirdPartyWakapiConfiguration struct {
 
 type Configuration struct {
 	ServerMonitor ServerMonitorConfiguration `json:"serverMonitor" toml:"serverMonitor"`
+	// 配置文件的修改时间, 值来自 [time.Time.UnixNano]
+	ModificationTime int64 `json:"modificationTime"`
 }
 
 func (c Configuration) String() string {
