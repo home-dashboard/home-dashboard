@@ -11,3 +11,8 @@ enable = false
 
 [serverMonitor.development.cors]
 allowOrigins = []
+
+[serverMonitor.thirdParty.wakapi]
+enable = false
+apiKey = ""
+apiUrl = ""
