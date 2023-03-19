@@ -4,7 +4,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	gormSessions "github.com/gin-contrib/sessions/gorm"
 	"github.com/gin-gonic/gin"
-	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
+	"github.com/siaikin/home-dashboard/internal/pkg/database"
 )
 
 var sessionName = "notificationSession"
@@ -12,7 +12,7 @@ var sessionName = "notificationSession"
 var store = initialStore()
 
 func initialStore() *gormSessions.Store {
-	store := gormSessions.NewStore(monitor_db.GetDB(), true, []byte("secret"))
+	store := gormSessions.NewStore(database.GetDB(), true, []byte("secret"))
 	return &store
 }
 
