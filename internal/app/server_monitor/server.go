@@ -3,12 +3,12 @@ package server_monitor
 import (
 	"errors"
 	"github.com/jinzhu/copier"
-	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_process_realtime"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
+	"github.com/siaikin/home-dashboard/internal/pkg/database"
 	"log"
 	"time"
 )
@@ -38,7 +38,7 @@ func Stop() {
 }
 
 func initialDeviceTable() error {
-	db := monitor_db.GetDB()
+	db := database.GetDB()
 
 	systemStat := monitor_realtime.GetCachedSystemRealtimeStat()
 
