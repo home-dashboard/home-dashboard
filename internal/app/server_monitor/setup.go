@@ -12,6 +12,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"github.com/siaikin/home-dashboard/internal/pkg/sessions"
+	"github.com/siaikin/home-dashboard/third_party"
 	"github.com/siaikin/home-dashboard/web/web_submodules"
 	"log"
 	"net/http"
@@ -81,16 +82,6 @@ func setupEngine(mock bool) *gin.Engine {
 }
 
 func setupRouter(router *gin.RouterGroup, mock bool) {
-	router.POST("auth", monitor_controller.Authorize)
-	router.POST("unauth", monitor_controller.Unauthorize)
-
-	authorized := router.Group("", authority.AuthorizeMiddleware())
-
-	authorized.GET("notification", notification.Notification)
-	authorized.POST("notification/collect", notification.ModifyCollectStat)
-	authorized.GET("notification/collect", notification.GetCollectStat)
-	authorized.GET("info/device", monitor_controller.DeviceInfo)
-
 	if mock {
 		// mock 模式下自动添加 session
 		router.Use(func(context *gin.Context) {
@@ -120,6 +111,22 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 		})
 
 	}
+
+	router.POST("auth", monitor_controller.Authorize)
+	router.POST("unauth", monitor_controller.Unauthorize)
+
+	authorized := router.Group("", authority.AuthorizeMiddleware())
+
+	authorized.GET("notification", notification.Notification)
+	authorized.POST("notification/collect", notification.ModifyCollectStat)
+	authorized.GET("notification/collect", notification.GetCollectStat)
+	authorized.GET("info/device", monitor_controller.DeviceInfo)
+
+	// 获取配置的更新信息
+	authorized.GET("configuration/updates", monitor_controller.GetChangedConfiguration)
+
+	// 启用第三方服务
+	third_party.Use(authorized)
 }
 
 var server *http.Server

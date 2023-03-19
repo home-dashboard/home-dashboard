@@ -21,6 +21,10 @@ func Initial() {
 	if err := generateAdministratorUser(); err != nil {
 		panic(err)
 	}
+
+	if err := storeLatestConfiguration(); err != nil {
+		panic(err)
+	}
 }
 
 func Start(port uint) {
@@ -103,6 +107,23 @@ func generateAdministratorUser() error {
 		if err := monitor_service.CreateUser(adminUser); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// 存储最新的配置信息到数据库中
+func storeLatestConfiguration() error {
+	currentConfig := configuration.Config
+
+	if config, err := monitor_service.LatestConfiguration(); err != nil {
+		return err
+	} else if config != nil && config.Configuration.ModificationTime == currentConfig.ModificationTime { // 记录条数为 0 或配置文件未修改时跳过
+		return nil
+	}
+
+	if err := monitor_service.CreateConfiguration(monitor_model.StoredConfiguration{Configuration: *configuration.Config}); err != nil {
+		return err
 	}
 
 	return nil
