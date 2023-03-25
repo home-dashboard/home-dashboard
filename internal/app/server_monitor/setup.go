@@ -45,7 +45,7 @@ func setupEngine(mock bool) *gin.Engine {
 
 				_ = err.SetMeta(map[string]interface{}{
 					"code":    resErr.Code,
-					"message": resErr.Message,
+					"message": resErr.Error(),
 				})
 			default:
 			}
