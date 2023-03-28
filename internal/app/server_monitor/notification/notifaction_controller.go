@@ -63,7 +63,11 @@ func Notification(c *gin.Context) {
 		message := message{}
 
 		select {
-		case realtimeStat := <-listenerCh:
+		case realtimeStat, ok := <-listenerCh:
+			if !ok {
+				return false
+			}
+
 			collectConfig := getCollectStatConfig(session)
 
 			if collectConfig.System.Enable {
@@ -71,7 +75,11 @@ func Notification(c *gin.Context) {
 			}
 
 			return true
-		case processRealtimeStat := <-processListenerCh:
+		case processRealtimeStat, ok := <-processListenerCh:
+			if !ok {
+				return false
+			}
+
 			collectConfig := getCollectStatConfig(session)
 
 			if collectConfig.Process.Enable {
