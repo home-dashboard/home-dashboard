@@ -10,6 +10,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"github.com/siaikin/home-dashboard/internal/pkg/sessions"
 	"github.com/siaikin/home-dashboard/third_party"
@@ -19,6 +20,8 @@ import (
 	"strconv"
 	"time"
 )
+
+var logger = comfy_log.New("[server_monitor]")
 
 func setupEngine(mock bool) *gin.Engine {
 	r := gin.Default()
@@ -126,7 +129,9 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 	authorized.GET("configuration/updates", monitor_controller.GetChangedConfiguration)
 
 	// 启用第三方服务
-	third_party.Use(authorized)
+	if err := third_party.Use(authorized); err != nil {
+		logger.Fatal("third party service start failed, %s.\n", err)
+	}
 }
 
 var server *http.Server
