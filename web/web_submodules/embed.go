@@ -14,12 +14,17 @@ var logger = comfy_log.New("[web_submodules]")
 var homeDashboardWebUiAssets embed.FS
 
 func EmbedHomeDashboardWebUI(engine *gin.Engine) error {
-	var unwrappedFs, assetsFs fs.FS
+	var unwrappedFs, appFs, assetsFs fs.FS
 	var err error
 	if unwrappedFs, err = fs.Sub(homeDashboardWebUiAssets, "home-dashboard-web-ui/build"); err != nil {
 		return err
 	}
-	if assetsFs, err = fs.Sub(unwrappedFs, "_app"); err != nil {
+	// appFs 用于输出 home-dashboard-web-ui 的 css/js 文件
+	if appFs, err = fs.Sub(unwrappedFs, "_app"); err != nil {
+		return err
+	}
+	// assetsFs 用于输出 home-dashboard-web-ui 的静态资源文件
+	if assetsFs, err = fs.Sub(unwrappedFs, "_assets"); err != nil {
 		return err
 	}
 
@@ -40,8 +45,9 @@ func EmbedHomeDashboardWebUI(engine *gin.Engine) error {
 		}
 	})
 
-	engine.StaticFS("/_app", http.FS(assetsFs))
+	engine.StaticFS("/_app", http.FS(appFs))
+	engine.StaticFS("/_assets", http.FS(assetsFs))
 
-	logger.Info("assets load complete\n")
+	logger.Info("home-dashboard-web-ui mount complete\n")
 	return nil
 }
