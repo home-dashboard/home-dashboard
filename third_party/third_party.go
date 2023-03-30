@@ -8,7 +8,7 @@ import (
 
 // Use 启用第三方服务.
 func Use(router *gin.RouterGroup) error {
-	wakapiConfig := configuration.Config.ServerMonitor.ThirdParty.Wakapi
+	wakapiConfig := configuration.Get().ServerMonitor.ThirdParty.Wakapi
 
 	if wakapiConfig.Enable {
 		if err := wakapi.Use(router.Group("wakapi")); err != nil {

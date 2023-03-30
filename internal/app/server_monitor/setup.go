@@ -76,7 +76,7 @@ func setupEngine(mock bool) *gin.Engine {
 			AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "x-requested-with"},
 			AllowCredentials: true,
 			MaxAge:           12 * time.Hour,
-			AllowOrigins:     configuration.Config.ServerMonitor.Development.Cors.AllowOrigins,
+			AllowOrigins:     configuration.Get().ServerMonitor.Development.Cors.AllowOrigins,
 		}))
 
 	}

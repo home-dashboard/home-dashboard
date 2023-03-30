@@ -9,17 +9,17 @@ import (
 	"time"
 )
 
-// Wakapi 的鉴权请求头. 由 [configuration.Config.ServerMonitor.ThirdParty.Wakapi.ApiKey] 值的 base64 格式拼接而成.
+// Wakapi 的鉴权请求头. 由 [configuration.Configuration.ServerMonitor.ThirdParty.Wakapi.ApiKey] 值的 base64 格式拼接而成.
 var authorization string
 
-// [configuration.Config.ServerMonitor.ThirdParty.Wakapi.ApiUrl] 的值.
+// [configuration.Configuration.ServerMonitor.ThirdParty.Wakapi.ApiUrl] 的值.
 var apiUrl string
 
 var client *comfy_http_client.Client
 
 // 初始化 Wakapi 的 http client.
 func httpClientInitial() error {
-	config := configuration.Config.ServerMonitor.ThirdParty.Wakapi
+	config := configuration.Get().ServerMonitor.ThirdParty.Wakapi
 
 	// 拼接 Wakapi 的鉴权请求头.
 	// 来源: https://wakapi.dev/swagger-ui/swagger-ui/index.html

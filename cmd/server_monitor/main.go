@@ -18,16 +18,18 @@ var (
 	date    = "unknown"
 )
 
-var config = configuration.Config
+var config *configuration.Configuration
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	flag.Parse()
+
+	config = configuration.Get()
 	if config.ServerMonitor.Port == 0 {
 		log.Fatalf("port %d is invalid", config.ServerMonitor.Port)
 	}
 
-	flag.Parse()
 }
 
 func main() {

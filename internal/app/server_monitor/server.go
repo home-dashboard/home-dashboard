@@ -34,7 +34,7 @@ func Start(port uint) {
 	monitor_realtime.StartSystemRealtimeStatLoop(time.Second)
 	monitor_process_realtime.StartRealtimeLoop(time.Second)
 
-	startServer(port, configuration.Config.ServerMonitor.Development.Enable)
+	startServer(port, configuration.Get().ServerMonitor.Development.Enable)
 }
 
 func Stop() {
@@ -86,7 +86,7 @@ func initialDeviceTable() error {
 
 // 从配置文件中的管理员配置中生成管理员账号.
 func generateAdministratorUser() error {
-	administrator := configuration.Config.ServerMonitor.Administrator
+	administrator := configuration.Get().ServerMonitor.Administrator
 
 	user, err := monitor_service.GetUser(monitor_model.User{Role: monitor_model.RoleAdministrator})
 
@@ -117,7 +117,7 @@ func generateAdministratorUser() error {
 
 // 存储最新的配置信息到数据库中
 func storeLatestConfiguration() error {
-	currentConfig := configuration.Config
+	currentConfig := configuration.Get()
 
 	if config, err := monitor_service.LatestConfiguration(); err != nil {
 		return err
@@ -125,7 +125,7 @@ func storeLatestConfiguration() error {
 		return nil
 	}
 
-	if err := monitor_service.CreateConfiguration(monitor_model.StoredConfiguration{Configuration: *configuration.Config}); err != nil {
+	if err := monitor_service.CreateConfiguration(monitor_model.StoredConfiguration{Configuration: *configuration.Get()}); err != nil {
 		return err
 	}
 

@@ -15,7 +15,7 @@ var logger = comfy_log.New("[THIRD-PARTY wakapi]")
 
 // Use 启用 Wakapi 服务.
 func Use(router *gin.RouterGroup) error {
-	wakapiConfig := configuration.Config.ServerMonitor.ThirdParty.Wakapi
+	wakapiConfig := configuration.Get().ServerMonitor.ThirdParty.Wakapi
 
 	// 校验参数
 	if !wakapiConfig.Enable {

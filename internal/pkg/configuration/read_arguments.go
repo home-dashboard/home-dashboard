@@ -9,12 +9,16 @@ var (
 	devMode    = flag.Bool("development", false, "enable development mode")
 )
 
-var argumentsConfig *Configuration = parseArguments()
+var argumentsConfig *Configuration
 
 func parseArguments() *Configuration {
-	return &Configuration{
-		ServerMonitor: ServerMonitorConfiguration{
-			Port:        *serverPort,
-			Development: ServerMonitorDevelopmentConfiguration{Enable: *devMode},
-		}}
+	if argumentsConfig == nil {
+		argumentsConfig = &Configuration{
+			ServerMonitor: ServerMonitorConfiguration{
+				Port:        *serverPort,
+				Development: ServerMonitorDevelopmentConfiguration{Enable: *devMode},
+			}}
+	}
+
+	return argumentsConfig
 }
