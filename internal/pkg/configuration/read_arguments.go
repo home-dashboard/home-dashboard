@@ -12,8 +12,6 @@ var (
 var argumentsConfig *Configuration = parseArguments()
 
 func parseArguments() *Configuration {
-	flag.Parse()
-
 	return &Configuration{
 		ServerMonitor: ServerMonitorConfiguration{
 			Port:        *serverPort,

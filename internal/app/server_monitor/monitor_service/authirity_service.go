@@ -2,8 +2,8 @@ package monitor_service
 
 import (
 	"errors"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
-	"github.com/siaikin/home-dashboard/internal/pkg/database"
 )
 
 var userModel = monitor_model.User{}
@@ -14,7 +14,7 @@ func GetUserByName(username string) (*monitor_model.User, error) {
 
 func GetUser(user monitor_model.User) (*monitor_model.User, error) {
 
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	count, _ := CountUser()
 
@@ -27,7 +27,7 @@ func GetUser(user monitor_model.User) (*monitor_model.User, error) {
 }
 
 func CreateUser(user monitor_model.User) error {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	result := db.Create(&user)
 
@@ -35,7 +35,7 @@ func CreateUser(user monitor_model.User) error {
 }
 
 func DeleteUser(user monitor_model.User) error {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	result := db.Delete(&user)
 
@@ -44,7 +44,7 @@ func DeleteUser(user monitor_model.User) error {
 
 // CountUser 获取 User 记录的总条数
 func CountUser() (*int64, error) {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	count := int64(0)
 	result := db.Model(&userModel).Count(&count)

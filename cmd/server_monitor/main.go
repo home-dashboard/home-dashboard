@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
+	"github.com/siaikin/home-dashboard/internal/pkg/database"
 	"log"
 	"os"
 	"os/signal"
@@ -24,12 +26,18 @@ func init() {
 	if config.ServerMonitor.Port == 0 {
 		log.Fatalf("port %d is invalid", config.ServerMonitor.Port)
 	}
+
+	flag.Parse()
 }
 
 func main() {
 	fmt.Printf("version %s, commit %s, built at %s config %s\n", version, commit, date, config)
 
-	server_monitor.Initial()
+	// 设置数据库文件路径
+	database.SetSourceFilePath("home-dashboard.db")
+	db := database.GetDB()
+
+	server_monitor.Initial(db)
 	server_monitor.Start(config.ServerMonitor.Port)
 	defer server_monitor.Stop()
 

@@ -1,12 +1,12 @@
 package monitor_service
 
 import (
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
-	"github.com/siaikin/home-dashboard/internal/pkg/database"
 )
 
 func GetNetworkAdapterInfo() *[]monitor_model.StoredSystemNetworkAdapterInfo {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	var adapterInfos []monitor_model.StoredSystemNetworkAdapterInfo
 
@@ -16,7 +16,7 @@ func GetNetworkAdapterInfo() *[]monitor_model.StoredSystemNetworkAdapterInfo {
 }
 
 func GetCpuInfo() *[]monitor_model.StoredSystemCpuInfo {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	var cpuInfos []monitor_model.StoredSystemCpuInfo
 	db.Find(&cpuInfos)
@@ -25,7 +25,7 @@ func GetCpuInfo() *[]monitor_model.StoredSystemCpuInfo {
 }
 
 func GetDiskInfo() *[]monitor_model.StoredSystemDiskInfo {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	var diskInfos []monitor_model.StoredSystemDiskInfo
 	db.Find(&diskInfos)

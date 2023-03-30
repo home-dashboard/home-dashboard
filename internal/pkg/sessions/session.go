@@ -9,7 +9,7 @@ import (
 
 var sessionName = "notificationSession"
 
-var store = initialStore()
+var store *gormSessions.Store
 
 func initialStore() *gormSessions.Store {
 	store := gormSessions.NewStore(database.GetDB(), true, []byte("secret"))
@@ -24,6 +24,10 @@ var middleware gin.HandlerFunc
 
 // GetSessionMiddleware 获取自定义的 session 中间件
 func GetSessionMiddleware() gin.HandlerFunc {
+	if store == nil {
+		store = initialStore()
+	}
+
 	if middleware == nil {
 		middleware = sessions.Sessions(sessionName, *store)
 	}

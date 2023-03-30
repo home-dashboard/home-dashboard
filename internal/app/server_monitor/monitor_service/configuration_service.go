@@ -1,8 +1,8 @@
 package monitor_service
 
 import (
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
-	"github.com/siaikin/home-dashboard/internal/pkg/database"
 )
 
 var configurationModel = monitor_model.StoredConfiguration{}
@@ -20,7 +20,7 @@ func LatestConfiguration() (*monitor_model.StoredConfiguration, error) {
 
 // LatestNConfiguration 获取前 max 个配置记录, 根据插入顺序排序. 当记录条数小于 max 时, 返回的结果数组长度为实际记录条数的长度.
 func LatestNConfiguration(max int64) (*[]monitor_model.StoredConfiguration, error) {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	count, _ := CountConfiguration()
 
@@ -36,7 +36,7 @@ func LatestNConfiguration(max int64) (*[]monitor_model.StoredConfiguration, erro
 
 // CreateConfiguration 插入一条记录
 func CreateConfiguration(config monitor_model.StoredConfiguration) error {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	result := db.Create(&config)
 
@@ -45,7 +45,7 @@ func CreateConfiguration(config monitor_model.StoredConfiguration) error {
 
 // DeleteConfiguration 删除一条记录
 func DeleteConfiguration(config monitor_model.StoredConfiguration) error {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	result := db.Delete(&config)
 
@@ -54,7 +54,7 @@ func DeleteConfiguration(config monitor_model.StoredConfiguration) error {
 
 // CountConfiguration 获取记录的总条数
 func CountConfiguration() (*int64, error) {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	count := int64(0)
 	result := db.Model(&configurationModel).Count(&count)

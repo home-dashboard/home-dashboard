@@ -3,17 +3,20 @@ package server_monitor
 import (
 	"errors"
 	"github.com/jinzhu/copier"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_process_realtime"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
-	"github.com/siaikin/home-dashboard/internal/pkg/database"
+	"gorm.io/gorm"
 	"log"
 	"time"
 )
 
-func Initial() {
+func Initial(db *gorm.DB) {
+	monitor_db.Initial(db)
+
 	if err := initialDeviceTable(); err != nil {
 		panic(err)
 	}
@@ -42,7 +45,7 @@ func Stop() {
 }
 
 func initialDeviceTable() error {
-	db := database.GetDB()
+	db := monitor_db.GetDB()
 
 	systemStat := monitor_realtime.GetCachedSystemRealtimeStat()
 

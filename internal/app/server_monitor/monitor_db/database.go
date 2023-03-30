@@ -3,13 +3,15 @@ package monitor_db
 import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
-	"github.com/siaikin/home-dashboard/internal/pkg/database"
+	"gorm.io/gorm"
 )
 
 var logger = comfy_log.New("[monitor_db]")
 
-func init() {
-	db := database.GetDB()
+var db *gorm.DB
+
+func Initial(_db *gorm.DB) {
+	db = _db
 
 	if err := db.AutoMigrate(
 		&monitor_model.StoredSystemStat{},
@@ -21,4 +23,13 @@ func init() {
 	); err != nil {
 		logger.Fatal("auto generate table failed, %s", err)
 	}
+
+}
+
+func GetDB() *gorm.DB {
+	if db == nil {
+		logger.Panic("db is nil")
+	}
+
+	return db
 }
