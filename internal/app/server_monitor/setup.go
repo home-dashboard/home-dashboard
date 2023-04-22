@@ -7,6 +7,7 @@ import (
 	ginSessions "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_controller"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
@@ -91,6 +92,12 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 			session := ginSessions.Default(context)
 
 			if session.Get(authority.InfoKey) == nil {
+				if user, err := monitor_service.GetUserByName(configuration.Get().ServerMonitor.Administrator.Username); err != nil {
+					_ = context.AbortWithError(http.StatusUnauthorized, comfy_errors.NewResponseError(comfy_errors.LoginRequestError, "auto login failed, %w", err))
+				} else {
+					session.Set(authority.InfoKey, user)
+				}
+
 				context.Next()
 
 				// 仅在未登录的第一次请求设置 Options (通过是否存在 authority.InfoKey 判断登录).
@@ -129,7 +136,7 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 	authorized.GET("configuration/updates", monitor_controller.GetChangedConfiguration)
 
 	// 启用第三方服务
-	if err := third_party.Use(authorized); err != nil {
+	if err := third_party.Load(authorized); err != nil {
 		logger.Fatal("third party service start failed, %s.\n", err)
 	}
 }
@@ -170,6 +177,10 @@ func stopServer(timeout time.Duration) {
 
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatalln("server forced to shutdown: ", err)
+	}
+
+	if err := third_party.Unload(); err != nil {
+		log.Fatalln("third party service stop failed, ", err)
 	}
 
 	log.Println("server graceful shutdown")

@@ -9,20 +9,12 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 	"github.com/siaikin/home-dashboard/internal/pkg/cache"
+	"github.com/siaikin/home-dashboard/internal/pkg/notification"
+	"github.com/siaikin/home-dashboard/third_party"
 	"io"
 	"log"
 	"net/http"
 )
-
-const (
-	RealtimeStat        = "realtimeStat"
-	ProcessRealtimeStat = "processRealtimeStat"
-)
-
-type message struct {
-	Type string
-	Data map[string]any
-}
 
 var collectConfigCache = cache.New("collectConfig")
 
@@ -38,19 +30,68 @@ func Notification(c *gin.Context) {
 
 	session := sessions.Default(c)
 
-	var listener = monitor_realtime.GetListener()
+	var listener = notification.GetListener()
 	var listenerCh = listener.Ch()
 	defer func() {
 		listener.Close()
 		log.Println("listener close complete")
 	}()
 
-	var processListener = monitor_process_realtime.GetListener()
-	var processListenerCh = processListener.Ch()
-	defer func() {
-		processListener.Close()
-		log.Println("process listener close complete")
-	}()
+	var _collectConfig = getCollectStatConfig(session)
+
+	// 发送系统实时统计信息
+	sendSystemRealtimeStatMessage := func(c *gin.Context, collectConfig CollectStatConfig, message notification.Message) {
+		c.SSEvent(message.Type, message.Data)
+	}
+	// 发送进程实时统计信息
+	sendProcessRealtimeStatMessage := func(c *gin.Context, collectConfig CollectStatConfig, message notification.Message) {
+		processStatList := message.Data[message.Type].([]*monitor_process_realtime.ProcessRealtimeStat)
+		delete(message.Data, message.Type)
+
+		message.Data["sortField"] = collectConfig.Process.SortField
+		message.Data["sortOrder"] = collectConfig.Process.SortOrder
+		message.Data["max"] = collectConfig.Process.Max
+		message.Data["total"] = len(processStatList)
+		message.Data["cpuUsage"] = monitor_realtime.GetCpuPercent()
+		message.Data["memoryUsage"] = monitor_realtime.GetMemoryPercent()
+
+		switch collectConfig.Process.SortField {
+		case sortByCpuUsage:
+			sortedProcesses, _ := monitor_process_realtime.SortByCpuUsage(collectConfig.Process.Max)
+			message.Data["processes"] = sortedProcesses
+			break
+		case sortByMemoryUsage:
+			sortedProcesses, _ := monitor_process_realtime.SortByMemoryUsage(collectConfig.Process.Max)
+			message.Data["processes"] = sortedProcesses
+			break
+		case normal:
+		default:
+			processes, _ := monitor_process_realtime.GetRealtimeStat(collectConfig.Process.Max)
+			message.Data["processes"] = processes
+		}
+
+		c.SSEvent(message.Type, message.Data)
+	}
+
+	// 通知信道连接成功时, 立即发送一次实时统计信息. 以便客户端能够立即显示统计信息.
+	// 立即发送的实时统计信息包含系统实时统计信息, 进程实时统计信息以及第三方模块的实时统计信息.
+	sendSystemRealtimeStatMessage(c, _collectConfig, notification.Message{
+		Type: monitor_realtime.MessageType,
+		Data: map[string]interface{}{
+			monitor_realtime.MessageType: monitor_realtime.GetCachedSystemRealtimeStat(),
+		},
+	})
+
+	processes, _ := monitor_process_realtime.GetRealtimeStat(-1)
+	sendProcessRealtimeStatMessage(c, _collectConfig, notification.Message{
+		Type: monitor_process_realtime.MessageType,
+		Data: map[string]interface{}{
+			monitor_process_realtime.MessageType: processes,
+		},
+	})
+	if err := third_party.DispatchEvent(third_party.NewNotificationChannelConnectedEvent(c)); err != nil {
+		log.Printf("dispatch notification channel connected event failed, %s\n", err)
+	}
 
 	c.Stream(func(w io.Writer) bool {
 		defer func() {
@@ -60,56 +101,28 @@ func Notification(c *gin.Context) {
 			}
 		}()
 
-		message := message{}
+		message, ok := <-listenerCh
+		if !ok {
+			return false
+		}
 
-		select {
-		case realtimeStat, ok := <-listenerCh:
-			if !ok {
-				return false
-			}
+		_collectConfig = getCollectStatConfig(session)
 
-			collectConfig := getCollectStatConfig(session)
-
-			if collectConfig.System.Enable {
-				c.SSEvent(RealtimeStat, gin.H{RealtimeStat: realtimeStat})
+		switch message.Type {
+		case monitor_realtime.MessageType:
+			if _collectConfig.System.Enable {
+				sendSystemRealtimeStatMessage(c, _collectConfig, message)
 			}
 
 			return true
-		case processRealtimeStat, ok := <-processListenerCh:
-			if !ok {
-				return false
+		case monitor_process_realtime.MessageType:
+			if _collectConfig.Process.Enable {
+				sendProcessRealtimeStatMessage(c, _collectConfig, message)
 			}
 
-			collectConfig := getCollectStatConfig(session)
-
-			if collectConfig.Process.Enable {
-				message.Type = ProcessRealtimeStat
-				message.Data = map[string]any{
-					"sortField":   collectConfig.Process.SortField,
-					"sortOrder":   collectConfig.Process.SortOrder,
-					"max":         collectConfig.Process.Max,
-					"total":       len(*processRealtimeStat),
-					"cpuUsage":    monitor_realtime.GetCpuPercent(),
-					"memoryUsage": monitor_realtime.GetMemoryPercent(),
-				}
-
-				switch collectConfig.Process.SortField {
-				case sortByCpuUsage:
-					sortedProcesses, _ := monitor_process_realtime.SortByCpuUsage(collectConfig.Process.Max)
-					message.Data["processes"] = sortedProcesses
-					break
-				case sortByMemoryUsage:
-					sortedProcesses, _ := monitor_process_realtime.SortByMemoryUsage(collectConfig.Process.Max)
-					message.Data["processes"] = sortedProcesses
-					break
-				case normal:
-				default:
-					processes, _ := monitor_process_realtime.GetRealtimeStat(collectConfig.Process.Max)
-					message.Data["processes"] = processes
-				}
-
-				c.SSEvent(ProcessRealtimeStat, message.Data)
-			}
+			return true
+		default:
+			c.SSEvent(message.Type, message.Data)
 
 			return true
 		}
@@ -150,6 +163,7 @@ func GetCollectStat(context *gin.Context) {
 	context.JSON(http.StatusOK, statConfig)
 }
 
+// getCollectStatConfig 通过 session 中的 username 获取统计数据收集配置
 func getCollectStatConfig(session sessions.Session) CollectStatConfig {
 	user := getAuthInfo(session)
 
