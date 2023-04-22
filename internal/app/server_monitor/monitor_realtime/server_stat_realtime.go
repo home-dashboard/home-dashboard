@@ -7,6 +7,7 @@ import (
 	psuHost "github.com/shirou/gopsutil/v3/host"
 	psuMem "github.com/shirou/gopsutil/v3/mem"
 	psuNet "github.com/shirou/gopsutil/v3/net"
+	"github.com/siaikin/home-dashboard/internal/pkg/notification"
 	"github.com/teivah/broadcast"
 	"log"
 	"strconv"
@@ -124,6 +125,10 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 
 var currentSystemStat = getSystemRealtimeStatic()
 
+const (
+	MessageType = "realtimeStat"
+)
+
 var done = make(chan bool)
 var relay *broadcast.Relay[*SystemRealtimeStat]
 
@@ -140,7 +145,7 @@ func StartSystemRealtimeStatLoop(d time.Duration) {
 				return
 			case <-ticker.C:
 				currentSystemStat = getSystemRealtimeStatic()
-				relay.Notify(currentSystemStat)
+				notification.Send(MessageType, map[string]any{MessageType: currentSystemStat})
 			}
 		}
 	}()
@@ -149,10 +154,6 @@ func StartSystemRealtimeStatLoop(d time.Duration) {
 func StopSystemRealtimeStatLoop() {
 	relay.Close()
 	done <- true
-}
-
-func GetListener() *broadcast.Listener[*SystemRealtimeStat] {
-	return relay.Listener(1)
 }
 
 func GetCachedSystemRealtimeStat() *SystemRealtimeStat {

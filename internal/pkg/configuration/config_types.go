@@ -38,6 +38,7 @@ type ServerMonitorDevelopmentConfiguration struct {
 // ServerMonitorThirdPartyConfiguration 第三方服务配置
 type ServerMonitorThirdPartyConfiguration struct {
 	Wakapi ServerMonitorThirdPartyWakapiConfiguration `json:"wakapi" toml:"wakapi"`
+	GitHub ServerMonitorThirdPartyGitHubConfiguration `json:"github" toml:"github"`
 }
 
 // ServerMonitorThirdPartyWakapiConfiguration 第三方服务 Wakapi 的配置
@@ -49,6 +50,16 @@ type ServerMonitorThirdPartyWakapiConfiguration struct {
 	ApiKey string `json:"apiKey" toml:"apiKey"`
 	// Wakapi 服务的地址
 	ApiUrl string `json:"apiUrl" toml:"apiUrl"`
+}
+
+// ServerMonitorThirdPartyGitHubConfiguration 第三方服务 GitHub 的配置
+type ServerMonitorThirdPartyGitHubConfiguration struct {
+	// 是否从 GitHub 收集数据
+	// 默认为 false
+	Enable bool `json:"enable" toml:"enable"`
+	// GitHub 访问令牌, 用于访问 GitHub API
+	// See https://docs.github.com/zh/rest/overview/authenticating-to-the-rest-api?apiVersion=2022-11-28#%E4%BD%BF%E7%94%A8-personal-access-token-%E8%BF%9B%E8%A1%8C%E8%BA%AB%E4%BB%BD%E9%AA%8C%E8%AF%81
+	PersonalAccessToken string `json:"personalAccessToken" toml:"personalAccessToken"`
 }
 
 type Configuration struct {

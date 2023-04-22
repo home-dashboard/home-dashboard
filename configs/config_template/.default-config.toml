@@ -16,3 +16,7 @@ allowOrigins = []
 enable = false
 apiKey = ""
 apiUrl = ""
+
+[serverMonitor.thirdParty.github]
+enable = false
+personalAccessToken = ""

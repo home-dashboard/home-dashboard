@@ -1,9 +1,9 @@
 package authority
 
 import (
-	"errors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"net/http"
 )
 
@@ -16,8 +16,7 @@ func AuthorizeMiddleware() gin.HandlerFunc {
 
 		info := session.Get(InfoKey)
 		if info == nil {
-			err := errors.New("unauthorized request")
-			_ = context.AbortWithError(http.StatusUnauthorized, err)
+			_ = context.AbortWithError(http.StatusUnauthorized, comfy_errors.NewResponseError(comfy_errors.LoginRequestError, "unauthorized request"))
 		}
 
 		context.Next()

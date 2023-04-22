@@ -3,6 +3,7 @@ package monitor_process_realtime
 import (
 	"fmt"
 	psuProc "github.com/shirou/gopsutil/v3/process"
+	"github.com/siaikin/home-dashboard/internal/pkg/notification"
 	"github.com/teivah/broadcast"
 	"log"
 	"runtime"
@@ -127,10 +128,12 @@ func fillProcessStat(stat *ProcessRealtimeStat, proc *psuProc.Process) []error {
 	return errs
 }
 
+// GetRealtimeStat 获取最新的实时进程统计信息. 更新频率来自 StartRealtimeLoop 函数的调用参数.
+// max 为返回的最大进程数, 如果 max 大于实际进程数或 max 小于 0, 则返回所有进程.
 func GetRealtimeStat(max int) ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
 	length := len(processStatList)
 
-	if length < max {
+	if length < max || max < 0 {
 		max = length
 	}
 	return processStatList[0:max], relationship
@@ -166,6 +169,10 @@ func SortByCpuUsage(max int) ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
 	return copied[0:max], relationship
 }
 
+const (
+	MessageType = "processRealtimeStat"
+)
+
 var done = make(chan bool)
 var relay = broadcast.NewRelay[*[]*ProcessRealtimeStat]()
 
@@ -180,7 +187,7 @@ func StartRealtimeLoop(d time.Duration) {
 				return
 			case <-ticker.C:
 				processStatList, relationship = getProcessRealtimeStatistic()
-				relay.Notify(&processStatList)
+				notification.Send(MessageType, map[string]any{MessageType: processStatList})
 			}
 		}
 	}()
@@ -189,8 +196,4 @@ func StartRealtimeLoop(d time.Duration) {
 func StopRealtimeLoop() {
 	relay.Close()
 	done <- true
-}
-
-func GetListener() *broadcast.Listener[*[]*ProcessRealtimeStat] {
-	return relay.Listener(1)
 }
