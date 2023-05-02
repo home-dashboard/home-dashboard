@@ -42,10 +42,12 @@ func unload() error {
 func dispatchEvent(event internal.ThirdPartyEvent) error {
 	switch event.GetType() {
 	case internal.NotificationChannelConnectedEventType:
-		sendNotification(getCachedNotifications())
+		//sendNotifications(getCachedNotifications())
+		return nil
+	case internal.UserNotificationMarkedAsReadEventType:
+		data := event.GetData().(internal.UserNotificationMarkedAsReadEventData)
+		return markNotificationAsRead(data.Notification.UniqueId)
 	default:
-		logger.Warn("unknown event type: %s", event.GetType())
+		return nil
 	}
-
-	return nil
 }

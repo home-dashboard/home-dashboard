@@ -4,25 +4,21 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-github/v50/github"
+	"github.com/siaikin/home-dashboard/internal/pkg/notification"
 	"github.com/siaikin/home-dashboard/third_party/internal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
-)
-
-const (
-	MessageType = "github"
 )
 
 var latestNotifications = make([]*github.Notification, 0)
 
 // 开始轮询获取 GitHub 通知.
 func startFetchNotificationLoop(context context.Context) {
-	if timer != nil {
-		return
-	}
-
-	timer = time.NewTimer(time.Nanosecond)
+	timer := time.NewTimer(time.Nanosecond)
+	// 检查通知已读状态的定时器
+	checkReadTimer := time.NewTimer(time.Minute * 10)
 
 	go func() {
 		for {
@@ -34,29 +30,47 @@ func startFetchNotificationLoop(context context.Context) {
 			case <-timer.C:
 				var delay int64 = 30
 
-				if _notifications, r, err := httpClient.ListNotifications(context, &github.NotificationListOptions{All: true}); err != nil {
+				if _notifications, r, err := httpClient.ListNotificationsByLastModified(context, &github.NotificationListOptions{}); err != nil {
 					logger.Warn("fetch notification failed, %v", err)
 				} else {
 					latestNotifications = _notifications
 
-					sendNotification(&latestNotifications)
+					sendNotifications(&latestNotifications)
 
 					// 根据 X-Poll-Interval 延迟时间重置定时器.
 					// https://docs.github.com/en/rest/activity/notifications?apiVersion=2022-11-28
 					if delay, err = strconv.ParseInt(r.Header.Get("X-Poll-Interval"), 10, 0); err != nil {
 						logger.Warn("parse X-Poll-Interval failed, %v", err)
 					}
+
+					logger.Info("update %d notification, delay %d seconds", len(latestNotifications), delay)
 				}
 
 				timer.Reset(time.Duration(delay) * time.Second)
+
+				break
+			case <-checkReadTimer.C:
+				// 获取所有未读通知, 并同步本地通知已读状态.
+				if _notifications, _, err := httpClient.Activity.ListNotifications(context, &github.NotificationListOptions{}); err != nil {
+					logger.Warn("fetch all unread notification failed, %v", err)
+				} else {
+					latestNotifications = _notifications
+
+					syncNotificationsUnreadState(&latestNotifications)
+
+					logger.Info("update %d unread notification", len(latestNotifications))
+				}
+
+				checkReadTimer.Reset(time.Minute * 10)
+				break
 			}
 		}
 	}()
 }
 
-// sendNotification 通过 [notification.Send] 发送 GitHub 通知.
-func sendNotification(notifications *[]*github.Notification) {
-	simpleNotifications := make([]*map[string]any, 0)
+// sendNotifications 通过 [notification.SendUserNotification] 发送 GitHub 通知.
+func sendNotifications(notifications *[]*github.Notification) {
+	userNotifications := make([]*notification.UserNotification, 0, len(*notifications))
 
 	for _, notificationInfo := range *notifications {
 		id := filepath.Base(notificationInfo.GetSubject().GetURL())
@@ -73,8 +87,6 @@ func sendNotification(notifications *[]*github.Notification) {
 			"title":     notificationInfo.GetSubject().GetTitle(),
 			"type":      notificationInfo.GetSubject().GetType(),
 		}
-
-		//suffixPath, _ := filepath.Rel("https://api.github.com/repos/", notificationInfo.GetSubject().GetURL())
 
 		var url string
 		switch notificationInfo.GetSubject().GetType() {
@@ -108,10 +120,30 @@ func sendNotification(notifications *[]*github.Notification) {
 		commentId := filepath.Base(notificationInfo.GetSubject().GetLatestCommentURL())
 		simpleNotification["lastCommentUrl"] = url + "#issuecomment-" + commentId
 
-		simpleNotifications = append(simpleNotifications, &simpleNotification)
+		userNotifications = append(userNotifications, &notification.UserNotification{
+			UniqueId:       notificationInfo.GetID(),
+			Unread:         notificationInfo.GetUnread(),
+			Title:          notificationInfo.GetRepository().GetFullName(),
+			Caption:        notificationInfo.GetSubject().GetTitle(),
+			Link:           url + "#issuecomment-" + commentId,
+			Kind:           internal.UserNotificationKindInfo,
+			Origin:         internal.UserNotificationOriginGithub,
+			OriginCreateAt: notificationInfo.GetUpdatedAt().UnixMilli(),
+		})
+
+		internal.SendUserNotifications(inst, userNotifications)
+	}
+}
+
+// syncNotificationsUnreadState 标记用户的 GitHub 通知为已读.
+func syncNotificationsUnreadState(notifications *[]*github.Notification) {
+	uniqueIds := make([]string, 0, len(*notifications))
+
+	for _, notificationInfo := range *notifications {
+		uniqueIds = append(uniqueIds, notificationInfo.GetID())
 	}
 
-	internal.SendNotificationMessage(MessageType, map[string]any{"notifications": simpleNotifications})
+	internal.SyncUserNotificationsUnreadState(inst, uniqueIds, internal.UserNotificationOriginGithub)
 }
 
 // getNotifications 获取最新获取的 GitHub 通知.
@@ -121,4 +153,13 @@ func getCachedNotifications() *[]*github.Notification {
 
 func resetNotificationRequestHeader(c *gin.Context) {
 	httpClient.ResetListNotificationsLastModified()
+}
+
+func markNotificationAsRead(uniqueId string) error {
+	if _, err := httpClient.Activity.MarkThreadRead(context.Background(), strings.SplitN(uniqueId, "-", 2)[1]); err != nil {
+		return err
+	}
+
+	logger.Info("mark notification as read, %s", uniqueId)
+	return nil
 }

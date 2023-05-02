@@ -30,13 +30,6 @@ func Notification(c *gin.Context) {
 
 	session := sessions.Default(c)
 
-	var listener = notification.GetListener()
-	var listenerCh = listener.Ch()
-	defer func() {
-		listener.Close()
-		log.Println("listener close complete")
-	}()
-
 	var _collectConfig = getCollectStatConfig(session)
 
 	// 发送系统实时统计信息
@@ -93,6 +86,12 @@ func Notification(c *gin.Context) {
 		log.Printf("dispatch notification channel connected event failed, %s\n", err)
 	}
 
+	var listener = notification.GetListener()
+	var listenerCh = listener.Ch()
+	defer func() {
+		listener.Close()
+		log.Println("listener close complete")
+	}()
 	c.Stream(func(w io.Writer) bool {
 		defer func() {
 			err := recover()
@@ -113,19 +112,18 @@ func Notification(c *gin.Context) {
 			if _collectConfig.System.Enable {
 				sendSystemRealtimeStatMessage(c, _collectConfig, message)
 			}
-
-			return true
+			break
 		case monitor_process_realtime.MessageType:
 			if _collectConfig.Process.Enable {
 				sendProcessRealtimeStatMessage(c, _collectConfig, message)
 			}
-
-			return true
-		default:
+			break
+		case "userNotification":
 			c.SSEvent(message.Type, message.Data)
-
-			return true
+			break
 		}
+
+		return true
 	})
 
 	log.Println("notification connection finish")

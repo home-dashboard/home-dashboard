@@ -1,6 +1,7 @@
 package server_monitor
 
 import (
+	"context"
 	"errors"
 	"github.com/jinzhu/copier"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
@@ -8,11 +9,15 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_process_realtime"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/user_notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"gorm.io/gorm"
 	"log"
 	"time"
 )
+
+var ctx context.Context
+var cancel context.CancelFunc
 
 func Initial(db *gorm.DB) {
 	monitor_db.Initial(db)
@@ -34,12 +39,17 @@ func Start(port uint) {
 	monitor_realtime.StartSystemRealtimeStatLoop(time.Second)
 	monitor_process_realtime.StartRealtimeLoop(time.Second)
 
+	ctx, cancel = context.WithCancel(context.Background())
+	user_notification.StartListenUserNotificationNotify(ctx)
+
 	startServer(port, configuration.Get().ServerMonitor.Development.Enable)
 }
 
 func Stop() {
 	monitor_realtime.StopSystemRealtimeStatLoop()
 	monitor_process_realtime.StopRealtimeLoop()
+
+	cancel()
 
 	stopServer(5 * time.Second)
 }
