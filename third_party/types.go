@@ -28,11 +28,21 @@ func newThirdPartyEvent(_type string, data any) thirdPartyEventImpl {
 	}
 }
 
-// NewNotificationChannelConnectedEvent 创建一个新的通知通道已连接事件.
+// NewNotificationChannelConnectedEvent 创建一个通知通道已连接事件.
 func NewNotificationChannelConnectedEvent(context *gin.Context) ThirdPartyEventImpl {
 	return internal.NotificationChannelConnectedEvent{
 		ThirdPartyEvent: newThirdPartyEvent(internal.NotificationChannelConnectedEventType, internal.NotificationChannelConnectedEventData{
 			Context: context,
+		}),
+	}
+}
+
+// NewUserNotificationMarkedAsReadEvent 创建一个用户通知被标记为已读事件.
+func NewUserNotificationMarkedAsReadEvent(context *gin.Context, notification internal.UserNotification) ThirdPartyEventImpl {
+	return internal.NotificationChannelConnectedEvent{
+		ThirdPartyEvent: newThirdPartyEvent(internal.UserNotificationMarkedAsReadEventType, internal.UserNotificationMarkedAsReadEventData{
+			Context:      context,
+			Notification: notification,
 		}),
 	}
 }

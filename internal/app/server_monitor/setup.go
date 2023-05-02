@@ -132,6 +132,11 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 	authorized.GET("notification/collect", notification.GetCollectStat)
 	authorized.GET("info/device", monitor_controller.DeviceInfo)
 
+	// 通知消息相关的接口
+	authorized.GET("notification/list/unread", monitor_controller.ListUnreadNotifications)
+	authorized.PATCH("notification/read/:id", monitor_controller.MarkNotificationAsRead)
+	authorized.PATCH("notification/read/all", monitor_controller.MarkAllNotificationAsRead)
+
 	// 获取配置的更新信息
 	authorized.GET("configuration/updates", monitor_controller.GetChangedConfiguration)
 

@@ -64,8 +64,8 @@ func addOptions(s string, opts interface{}) (string, error) {
 
 var lastModified string
 
-// ListNotifications 获取通知列表.
-func (c *client) ListNotifications(ctx context.Context, opts *github.NotificationListOptions) ([]*github.Notification, *github.Response, error) {
+// ListNotificationsByLastModified 通过 Last-Modified 请求头获取通知列表.
+func (c *client) ListNotificationsByLastModified(ctx context.Context, opts *github.NotificationListOptions) ([]*github.Notification, *github.Response, error) {
 	u := "notifications"
 	u, err := addOptions(u, opts)
 	if err != nil {

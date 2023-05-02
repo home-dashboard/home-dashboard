@@ -29,8 +29,6 @@ type repositoryInfo struct {
 	ForkCount      int
 }
 
-var timer *time.Timer
-
 // startFetchUserInfoLoop 启动定时获取用户信息的循环.
 func startFetchUserInfoLoop(context context.Context) {
 	// 一小时获取一次用户统计信息

@@ -20,6 +20,7 @@ func Initial(_db *gorm.DB) {
 		&monitor_model.StoredSystemCpuInfo{},
 		&monitor_model.User{},
 		&monitor_model.StoredConfiguration{},
+		&monitor_model.StoredNotification{},
 	); err != nil {
 		logger.Fatal("auto generate table failed, %s", err)
 	}

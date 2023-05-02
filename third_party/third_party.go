@@ -8,7 +8,10 @@ import (
 	"github.com/siaikin/home-dashboard/third_party/github"
 	"github.com/siaikin/home-dashboard/third_party/internal"
 	"github.com/siaikin/home-dashboard/third_party/wakapi"
+	"strings"
 )
+
+var logger = comfy_log.New("[THIRD-PARTY]")
 
 var ctx context.Context
 var cancel context.CancelFunc
@@ -69,5 +72,15 @@ func DispatchEvent(event ThirdPartyEventImpl) error {
 		}
 	}
 
+	logger.Info("dispatch event: %s to %s success", event.GetType(), strings.Join(getModuleNames(), ", "))
 	return nil
+}
+
+// getModuleNames 获取所有第三方服务名称.
+func getModuleNames() []string {
+	names := make([]string, 0, len(modules))
+	for name := range modules {
+		names = append(names, name)
+	}
+	return names
 }
