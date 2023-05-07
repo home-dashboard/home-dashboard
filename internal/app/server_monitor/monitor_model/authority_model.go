@@ -1,6 +1,9 @@
 package monitor_model
 
-import "encoding/gob"
+import (
+	"encoding/gob"
+	"github.com/siaikin/home-dashboard/internal/pkg/authority"
+)
 
 type UserRole = int
 
@@ -10,12 +13,12 @@ var (
 )
 
 type User struct {
-	Model
-	Username string   `json:"username"`
-	Password string   `json:"password"`
-	Role     UserRole `json:"role"`
+	Model `json:"model"`
+	authority.User
+	Role UserRole `json:"role"`
 }
 
 func init() {
+	gob.Register(authority.User{})
 	gob.Register(User{})
 }

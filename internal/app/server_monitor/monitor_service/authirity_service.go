@@ -4,12 +4,13 @@ import (
 	"errors"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
+	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 )
 
 var userModel = monitor_model.User{}
 
 func GetUserByName(username string) (*monitor_model.User, error) {
-	return GetUser(monitor_model.User{Username: username})
+	return GetUser(monitor_model.User{User: authority.User{Username: username}})
 }
 
 func GetUser(user monitor_model.User) (*monitor_model.User, error) {
@@ -30,6 +31,14 @@ func CreateUser(user monitor_model.User) error {
 	db := monitor_db.GetDB()
 
 	result := db.Create(&user)
+
+	return result.Error
+}
+
+func UpdateUser(user monitor_model.User) error {
+	db := monitor_db.GetDB()
+
+	result := db.Save(&user)
 
 	return result.Error
 }

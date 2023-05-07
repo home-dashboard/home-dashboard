@@ -10,6 +10,7 @@ require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/glebarez/sqlite v1.6.0
 	github.com/jinzhu/copier v0.3.5
+	github.com/pquerna/otp v1.4.0
 	github.com/shirou/gopsutil/v3 v3.22.11
 	github.com/teivah/broadcast v0.1.0
 	golang.org/x/sys v0.7.0
@@ -19,6 +20,7 @@ require (
 
 require (
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
+	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/cloudflare/circl v1.1.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/glebarez/go-sqlite v1.20.0 // indirect

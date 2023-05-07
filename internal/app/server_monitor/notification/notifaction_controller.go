@@ -4,7 +4,6 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
-	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_process_realtime"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
@@ -176,8 +175,8 @@ func getCollectStatConfig(session sessions.Session) CollectStatConfig {
 	return collectConfig
 }
 
-func getAuthInfo(session sessions.Session) monitor_model.User {
-	config, _ := session.Get(authority.InfoKey).(monitor_model.User)
+func getAuthInfo(session sessions.Session) authority.User {
+	config, _ := session.Get(authority.InfoKey).(authority.User)
 
 	return config
 }

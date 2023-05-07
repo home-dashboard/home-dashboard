@@ -95,7 +95,7 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 				if user, err := monitor_service.GetUserByName(configuration.Get().ServerMonitor.Administrator.Username); err != nil {
 					_ = context.AbortWithError(http.StatusUnauthorized, comfy_errors.NewResponseError(comfy_errors.LoginRequestError, "auto login failed, %w", err))
 				} else {
-					session.Set(authority.InfoKey, user)
+					session.Set(authority.InfoKey, user.User)
 				}
 
 				context.Next()
@@ -124,24 +124,35 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 
 	router.POST("auth", monitor_controller.Authorize)
 	router.POST("unauth", monitor_controller.Unauthorize)
+	// 获取当前登录用户信息
+	router.GET("user/current", monitor_controller.GetCurrentUser)
 
+	// 该路由组下的接口需要登录
 	authorized := router.Group("", authority.AuthorizeMiddleware())
+	// 2FA 校验相关接口
+	authorized.GET("auth/2fa/qrcode", monitor_controller.Generate2FABindingQRCode)
+	authorized.POST("auth/2fa/bind/app", monitor_controller.Binding2FAByAuthenticatorApp)
+	authorized.POST("auth/2fa/validate", monitor_controller.Validate2FA)
+	authorized.POST("auth/2fa/disable", monitor_controller.Disable2FA)
 
-	authorized.GET("notification", notification.Notification)
-	authorized.POST("notification/collect", notification.ModifyCollectStat)
-	authorized.GET("notification/collect", notification.GetCollectStat)
-	authorized.GET("info/device", monitor_controller.DeviceInfo)
+	// 该路由组下的接口需要登录且 2FA 校验通过(如果 2FA 开启)
+	authorizedAnd2faValidated := authorized.Group("", authority.Authorize2FAMiddleware())
+
+	authorizedAnd2faValidated.GET("notification", notification.Notification)
+	authorizedAnd2faValidated.POST("notification/collect", notification.ModifyCollectStat)
+	authorizedAnd2faValidated.GET("notification/collect", notification.GetCollectStat)
+	authorizedAnd2faValidated.GET("info/device", monitor_controller.DeviceInfo)
 
 	// 通知消息相关的接口
-	authorized.GET("notification/list/unread", monitor_controller.ListUnreadNotifications)
-	authorized.PATCH("notification/read/:id", monitor_controller.MarkNotificationAsRead)
-	authorized.PATCH("notification/read/all", monitor_controller.MarkAllNotificationAsRead)
+	authorizedAnd2faValidated.GET("notification/list/unread", monitor_controller.ListUnreadNotifications)
+	authorizedAnd2faValidated.PATCH("notification/read/:id", monitor_controller.MarkNotificationAsRead)
+	authorizedAnd2faValidated.PATCH("notification/read/all", monitor_controller.MarkAllNotificationAsRead)
 
 	// 获取配置的更新信息
-	authorized.GET("configuration/updates", monitor_controller.GetChangedConfiguration)
+	authorizedAnd2faValidated.GET("configuration/updates", monitor_controller.GetChangedConfiguration)
 
 	// 启用第三方服务
-	if err := third_party.Load(authorized); err != nil {
+	if err := third_party.Load(authorizedAnd2faValidated); err != nil {
 		logger.Fatal("third party service start failed, %s.\n", err)
 	}
 }

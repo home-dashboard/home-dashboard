@@ -10,6 +10,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/user_notification"
+	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"gorm.io/gorm"
 	"log"
@@ -112,9 +113,11 @@ func generateAdministratorUser() error {
 
 	if err != nil {
 		adminUser := monitor_model.User{
-			Username: administrator.Username,
-			Password: administrator.Password,
-			Role:     monitor_model.RoleAdministrator,
+			User: authority.User{
+				Username: administrator.Username,
+				Password: administrator.Password,
+			},
+			Role: monitor_model.RoleAdministrator,
 		}
 
 		if err := monitor_service.CreateUser(adminUser); err != nil {
