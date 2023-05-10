@@ -34,7 +34,7 @@ func generateOrReadConfigFile() *Configuration {
 	var configFile *os.File
 
 	// 创建 or 打开配置文件
-	if !utils.FileExist(filePath) {
+	if exist, err := utils.FileExist(filePath); !exist || err != nil {
 		file, err := os.Create(filePath)
 		if err != nil {
 			log.Fatalf("config file create failed, %s\n", err)

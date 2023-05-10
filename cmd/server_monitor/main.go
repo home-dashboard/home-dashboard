@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"github.com/siaikin/home-dashboard/internal/pkg/database"
@@ -29,7 +30,9 @@ func init() {
 	if config.ServerMonitor.Port == 0 {
 		log.Fatalf("port %d is invalid", config.ServerMonitor.Port)
 	}
-
+	if config.ServerMonitor.Development.Enable == false {
+		gin.SetMode(gin.ReleaseMode)
+	}
 }
 
 func main() {
