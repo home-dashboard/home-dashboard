@@ -31,7 +31,7 @@ func New(prefix string) *Logger {
 	stderr := io.MultiWriter(os.Stderr, logFileWriter{writeToStdoutFile: false})
 
 	_logger := &Logger{
-		stdout: log.New(stdout, prefix, log.LstdFlags|log.LUTC|log.Lshortfile|log.Lmsgprefix),
+		stdout: log.New(stdout, prefix, log.LstdFlags|log.LUTC|log.Llongfile|log.Lmsgprefix),
 		stderr: log.New(stderr, prefix, log.LstdFlags|log.LUTC|log.Lshortfile|log.Lmsgprefix),
 	}
 
@@ -124,9 +124,9 @@ func openOrCreateLogFile(suffix string) *os.File {
 }
 
 // generateLogFileName 根据给的 date 生成日志文件名. 如果 suffix 不为空, 则在日志文件名后添加 suffix.
-// 文件名格式为 "YYYYMMDD_dd-hh-mm[_suffix]?.log", 其中 "YYYYMMDD_dd-hh-mm" 表示日期, "suffix" 表示文件名后缀.
+// 文件名格式为 "YYYYMMDD[_suffix]?.log", 其中 "YYYYMMDD" 表示日期, "suffix" 表示文件名后缀.
 func generateLogFileName(date time.Time, suffix string) string {
-	path := fmt.Sprintf("%04d%02d%02d_%02d-%02d-%02d", date.Year(), date.Month(), date.Day(), date.Hour(), date.Minute(), date.Second())
+	path := fmt.Sprintf("%04d%02d%02d", date.Year(), date.Month(), date.Day())
 	if len(suffix) > 0 {
 		path = path + "_" + suffix
 	}
