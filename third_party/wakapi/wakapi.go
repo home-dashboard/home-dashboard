@@ -41,6 +41,7 @@ func initial(router *gin.RouterGroup) {
 
 	router.GET("stats/:range", GetStats)
 	router.GET("projects", GetProjectList)
+	router.GET("summaries", GetSummaries)
 }
 
 // 将 Wakapi appKey 对应的 userId 附加到请求上下文中.
