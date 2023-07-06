@@ -88,36 +88,36 @@ func replaceLogFile() {
 
 // openOrCreateLogFile 打开日志文件, 如果日志文件不存在则创建.
 func openOrCreateLogFile(suffix string) *os.File {
-	dirPath := filepath.Join(utils.WorkspaceDir, "logs")
+	dirPath := filepath.Join(utils.WorkspaceDir(), "logs")
 
 	// 检查日志目录是否存在, 不存在则创建.
 	exist, err := utils.FileExist(dirPath)
 	if err != nil {
-		logger.Fatal("check log dir exist failed, %s", err)
+		logger.Fatal("check log dir exist failed, %s\n", err)
 	} else if !exist {
-		logger.Info("detect log dir not exist, try to create it")
+		logger.Info("detect log dir not exist, try to create it\n")
 		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
-			logger.Fatal("create log dir failed, %s", err)
+			logger.Fatal("create log dir failed, %s\n", err)
 		}
 	}
 
 	logDir, err := os.Open(dirPath)
 	if err != nil {
-		logger.Fatal("open log dir failed, %s", err)
+		logger.Fatal("open log dir failed, %s\n", err)
 	}
 
 	// 检查日志目录是否为目录.
 	if fileInfo, err := logDir.Stat(); err != nil {
-		logger.Fatal("get log dir stat failed, %s", err)
+		logger.Fatal("get log dir stat failed, %s\n", err)
 	} else if !fileInfo.IsDir() {
-		logger.Fatal("log dir(%s) is not a directory", dirPath)
+		logger.Fatal("log dir(%s) is not a directory\n", dirPath)
 	}
 
 	// 打开日志文件, 如果不存在则创建.
 	filePath := filepath.Join(dirPath, generateLogFileName(time.Now(), suffix))
 	logFile, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModePerm)
 	if err != nil {
-		logger.Fatal("open log file failed, %s", err)
+		logger.Fatal("open log file failed, %s\n", err)
 	}
 
 	return logFile

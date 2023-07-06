@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"github.com/siaikin/home-dashboard/internal/pkg/database"
 	"log"
@@ -21,6 +21,8 @@ var (
 
 var config *configuration.Configuration
 
+var logger = comfy_log.New("[server_monitor]")
+
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
@@ -28,7 +30,7 @@ func init() {
 
 	config = configuration.Get()
 	if config.ServerMonitor.Port == 0 {
-		log.Fatalf("port %d is invalid", config.ServerMonitor.Port)
+		logger.Fatal("port %d is invalid\n", config.ServerMonitor.Port)
 	}
 	if config.ServerMonitor.Development.Enable == false {
 		gin.SetMode(gin.ReleaseMode)
@@ -36,7 +38,7 @@ func init() {
 }
 
 func main() {
-	fmt.Printf("version %s, commit %s, built at %s config %s\n", version, commit, date, config)
+	logger.Info("version %s, commit %s, built at %s config %s\n", version, commit, date, config)
 
 	// 设置数据库文件路径
 	database.SetSourceFilePath("home-dashboard.db")
@@ -50,5 +52,5 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	fmt.Println("receive exit signal")
+	logger.Info("receive exit signal\n")
 }

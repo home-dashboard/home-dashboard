@@ -2,7 +2,6 @@ package wakapi
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
@@ -19,11 +18,11 @@ func Use(router *gin.RouterGroup) error {
 
 	// 校验参数
 	if !wakapiConfig.Enable {
-		return fmt.Errorf("third party service are used, but not enabled in configuration file")
+		return comfy_errors.NewResponseError(comfy_errors.UnknownError, "third party service are not enabled in configuration file")
 	} else if parsedUrl, err := url.ParseRequestURI(wakapiConfig.ApiUrl); err != nil || len(parsedUrl.Scheme) <= 0 {
-		return fmt.Errorf("api url [%s] cannot parsed. %s\n", wakapiConfig.ApiUrl, err)
+		return comfy_errors.NewResponseError(comfy_errors.UnknownError, "api url [%s] cannot parsed. %s\n", wakapiConfig.ApiUrl, err)
 	} else if len(wakapiConfig.ApiKey) <= 0 {
-		return fmt.Errorf("api key is empty")
+		return comfy_errors.NewResponseError(comfy_errors.UnknownError, "api key is empty")
 	}
 
 	logger.Info("enabled with apiKey: \"%s\", apiUrl: \"%s\"\n", wakapiConfig.ApiKey, wakapiConfig.ApiUrl)

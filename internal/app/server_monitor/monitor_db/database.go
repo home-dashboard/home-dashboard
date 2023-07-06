@@ -22,14 +22,14 @@ func Initial(_db *gorm.DB) {
 		&monitor_model.StoredConfiguration{},
 		&monitor_model.StoredNotification{},
 	); err != nil {
-		logger.Fatal("auto generate table failed, %s", err)
+		logger.Fatal("auto generate table failed, %s\n", err)
 	}
 
 }
 
 func GetDB() *gorm.DB {
 	if db == nil {
-		logger.Panic("db is nil")
+		logger.Panic("db is nil\n")
 	}
 
 	return db

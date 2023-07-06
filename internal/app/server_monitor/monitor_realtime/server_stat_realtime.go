@@ -7,12 +7,14 @@ import (
 	psuHost "github.com/shirou/gopsutil/v3/host"
 	psuMem "github.com/shirou/gopsutil/v3/mem"
 	psuNet "github.com/shirou/gopsutil/v3/net"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/notification"
-	"github.com/teivah/broadcast"
-	"log"
+	"golang.org/x/net/context"
 	"strconv"
 	"time"
 )
+
+var logger = comfy_log.New("[monitor_realtime]")
 
 func getSystemRealtimeStatic() *SystemRealtimeStat {
 	systemStat := SystemRealtimeStat{
@@ -52,7 +54,7 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 			},
 		}
 		if err := copier.Copy(networkStat.InterfaceStat, item); err != nil {
-			log.Printf("network interface copy faild, %s\n", err)
+			logger.Info("network interface copy failed, %s\n", err)
 		}
 
 		systemStat.Network = append(systemStat.Network, &networkStat)
@@ -129,18 +131,13 @@ const (
 	MessageType = "realtimeStat"
 )
 
-var done = make(chan bool)
-var relay *broadcast.Relay[*SystemRealtimeStat]
-
-func StartSystemRealtimeStatLoop(d time.Duration) {
-	relay = broadcast.NewRelay[*SystemRealtimeStat]()
-
+func Loop(context context.Context, d time.Duration) {
 	ticker := time.NewTicker(d)
 
 	go func() {
 		for {
 			select {
-			case <-done:
+			case <-context.Done():
 				ticker.Stop()
 				return
 			case <-ticker.C:
@@ -149,11 +146,6 @@ func StartSystemRealtimeStatLoop(d time.Duration) {
 			}
 		}
 	}()
-}
-
-func StopSystemRealtimeStatLoop() {
-	relay.Close()
-	done <- true
 }
 
 func GetCachedSystemRealtimeStat() *SystemRealtimeStat {

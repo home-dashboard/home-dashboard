@@ -25,13 +25,13 @@ func startFetchNotificationLoop(context context.Context) {
 			select {
 			case <-context.Done():
 				timer.Stop()
-				logger.Info("stop fetch notification loop")
+				logger.Info("stop fetch notification loop\n")
 				return
 			case <-timer.C:
 				var delay int64 = 30
 
 				if _notifications, r, err := httpClient.ListNotificationsByLastModified(context, &github.NotificationListOptions{}); err != nil {
-					logger.Warn("fetch notification failed, %v", err)
+					logger.Warn("fetch notification failed, %v\n", err)
 				} else {
 					latestNotifications = _notifications
 
@@ -40,10 +40,10 @@ func startFetchNotificationLoop(context context.Context) {
 					// 根据 X-Poll-Interval 延迟时间重置定时器.
 					// https://docs.github.com/en/rest/activity/notifications?apiVersion=2022-11-28
 					if delay, err = strconv.ParseInt(r.Header.Get("X-Poll-Interval"), 10, 0); err != nil {
-						logger.Warn("parse X-Poll-Interval failed, %v", err)
+						logger.Warn("parse X-Poll-Interval failed, %v\n", err)
 					}
 
-					logger.Info("update %d notification, delay %d seconds", len(latestNotifications), delay)
+					logger.Info("update %d notification, delay %d seconds\n", len(latestNotifications), delay)
 				}
 
 				timer.Reset(time.Duration(delay) * time.Second)
@@ -52,13 +52,13 @@ func startFetchNotificationLoop(context context.Context) {
 			case <-checkReadTimer.C:
 				// 获取所有未读通知, 并同步本地通知已读状态.
 				if _notifications, _, err := httpClient.Activity.ListNotifications(context, &github.NotificationListOptions{}); err != nil {
-					logger.Warn("fetch all unread notification failed, %v", err)
+					logger.Warn("fetch all unread notification failed, %v\n", err)
 				} else {
 					latestNotifications = _notifications
 
 					syncNotificationsUnreadState(&latestNotifications)
 
-					logger.Info("update %d unread notification", len(latestNotifications))
+					logger.Info("update %d unread notification\n", len(latestNotifications))
 				}
 
 				checkReadTimer.Reset(time.Minute * 10)
@@ -160,6 +160,6 @@ func markNotificationAsRead(uniqueId string) error {
 		return err
 	}
 
-	logger.Info("mark notification as read, %s", uniqueId)
+	logger.Info("mark notification as read, %s\n", uniqueId)
 	return nil
 }

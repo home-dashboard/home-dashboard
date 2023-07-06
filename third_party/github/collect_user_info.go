@@ -39,14 +39,14 @@ func startFetchUserInfoLoop(context context.Context) {
 			select {
 			case <-context.Done():
 				ticker.Stop()
-				logger.Info("stop fetch user info loop")
+				logger.Info("stop fetch user info loop\n")
 				return
 			case <-ticker.C:
 				if err := collectUserInfo(); err != nil {
-					logger.Error("get user info failed, %w", err)
+					logger.Error("get user info failed, %w\n", err)
 					continue
 				} else {
-					logger.Info("update user info success")
+					logger.Info("update user info success\n")
 				}
 			}
 		}

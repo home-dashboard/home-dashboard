@@ -1,15 +1,17 @@
 package monitor_process_realtime
 
 import (
+	"context"
 	"fmt"
 	psuProc "github.com/shirou/gopsutil/v3/process"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/notification"
-	"github.com/teivah/broadcast"
-	"log"
 	"runtime"
 	"sort"
 	"time"
 )
+
+var logger = comfy_log.New("[monitor_process_realtime]")
 
 var processMap = make(map[int32]*psuProc.Process)
 
@@ -34,7 +36,7 @@ func getProcessRealtimeStatistic() ([]*ProcessRealtimeStat, map[int32]*ProcessNo
 			processMap[pid] = proc
 
 			if err != nil {
-				log.Printf("create process instance failed, %s\n", err)
+				logger.Warn("create process instance failed, %s\n", err)
 				continue
 			}
 		}
@@ -50,7 +52,7 @@ func getProcessRealtimeStatistic() ([]*ProcessRealtimeStat, map[int32]*ProcessNo
 
 		var ppid int32
 		if ppid, err = proc.Ppid(); err != nil {
-			log.Printf("process get ppid failed, %s\n", err)
+			logger.Warn("process get ppid failed, %s\n", err)
 			continue
 		}
 
@@ -76,7 +78,7 @@ func getProcessRealtimeStatistic() ([]*ProcessRealtimeStat, map[int32]*ProcessNo
 	}
 
 	if len(fillFailProcessIds) > 0 {
-		log.Printf("fill failed process ids: %d\n", fillFailProcessIds)
+		logger.Warn("fill failed process ids: %d\n", fillFailProcessIds)
 	}
 	return processStatList, relationshipMap
 }
@@ -89,6 +91,7 @@ func fillProcessStat(stat *ProcessRealtimeStat, proc *psuProc.Process) []error {
 	stat.Pid = proc.Pid
 
 	if percent, err := proc.MemoryPercent(); err != nil {
+		errs = append(errs, fmt.Errorf("process get memory percent failed, %s\n", err))
 		errs = append(errs, fmt.Errorf("process get memory percent failed, %s\n", err))
 	} else {
 		stat.MemoryPercent = percent
@@ -173,16 +176,13 @@ const (
 	MessageType = "processRealtimeStat"
 )
 
-var done = make(chan bool)
-var relay = broadcast.NewRelay[*[]*ProcessRealtimeStat]()
-
-func StartRealtimeLoop(d time.Duration) {
+func Loop(context context.Context, d time.Duration) {
 	ticker := time.NewTicker(d)
 
 	go func() {
 		for {
 			select {
-			case <-done:
+			case <-context.Done():
 				ticker.Stop()
 				return
 			case <-ticker.C:
@@ -191,9 +191,4 @@ func StartRealtimeLoop(d time.Duration) {
 			}
 		}
 	}()
-}
-
-func StopRealtimeLoop() {
-	relay.Close()
-	done <- true
 }

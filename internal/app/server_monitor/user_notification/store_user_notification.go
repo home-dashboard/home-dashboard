@@ -17,13 +17,13 @@ func StartListenUserNotificationNotify(context context.Context) {
 		var listenerCh = listener.Ch()
 		defer func() {
 			listener.Close()
-			logger.Info("listener close complete")
+			logger.Info("listener close complete\n")
 		}()
 
 		for {
 			select {
 			case <-context.Done():
-				logger.Info("stop listen user notification notify")
+				logger.Info("stop listen user notification notify\n")
 				return
 			case message, ok := <-listenerCh:
 				if !ok {
@@ -35,7 +35,7 @@ func StartListenUserNotificationNotify(context context.Context) {
 					userNotifications, ok := message.Data["notifications"].([]notification.UserNotification)
 
 					if !ok {
-						logger.Error("invalid user notifications")
+						logger.Error("invalid user notifications\n")
 						continue
 					}
 
@@ -46,10 +46,10 @@ func StartListenUserNotificationNotify(context context.Context) {
 						}
 					}
 					if err := monitor_service.CreateOrUpdateNotifications(storedNotifications); err != nil {
-						logger.Error(comfy_errors.NewResponseError(comfy_errors.UnknownError, "store notification error, %w", err).Error())
+						logger.Error(comfy_errors.NewResponseError(comfy_errors.UnknownError, "store notification error, %w\n", err).Error())
 						continue
 					} else {
-						logger.Info("store %d notifications success", len(storedNotifications))
+						logger.Info("store %d notifications success\n", len(storedNotifications))
 						notification.Send("userNotification", map[string]any{})
 					}
 
@@ -57,20 +57,20 @@ func StartListenUserNotificationNotify(context context.Context) {
 				case notification.UserNotificationReadMessageType:
 					unreadUniqueIds, ok := message.Data["unreadUniqueIds"].([]string)
 					if !ok {
-						logger.Error("invalid uniqueId list")
+						logger.Error("invalid uniqueId list\n")
 						continue
 					}
 					origin, ok := message.Data["origin"].(string)
 					if !ok {
-						logger.Error("invalid origin")
+						logger.Error("invalid origin\n")
 						continue
 					}
 
 					if updateIds, err := monitor_service.SyncNotificationsReadStateByUniqueIds(unreadUniqueIds, origin); err != nil {
-						logger.Error(comfy_errors.NewResponseError(comfy_errors.UnknownError, "sync user notification read state error, %w", err).Error())
+						logger.Error(comfy_errors.NewResponseError(comfy_errors.UnknownError, "sync user notification read state error, %w\n", err).Error())
 						continue
 					} else {
-						logger.Info("sync user notification read state success, update ids: %v", updateIds)
+						logger.Info("sync user notification read state success, update ids: %v\n", updateIds)
 
 						if len(updateIds) > 0 {
 							notification.Send("userNotification", map[string]any{})

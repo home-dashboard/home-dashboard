@@ -2,8 +2,10 @@ package configuration
 
 import (
 	"github.com/jinzhu/copier"
-	"log"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 )
+
+var logger = comfy_log.New("configuration")
 
 var config *Configuration
 
@@ -16,10 +18,10 @@ func merge() *Configuration {
 	merged := Configuration{}
 	copyOption := copier.Option{IgnoreEmpty: true, DeepCopy: true}
 	if err := copier.CopyWithOption(&merged, &fileConfig, copyOption); err != nil {
-		log.Fatalf("file config merge failed, %s\n", err)
+		logger.Fatal("file config merge failed, %s\n", err)
 	}
 	if err := copier.CopyWithOption(&merged, &argumentsConfig, copyOption); err != nil {
-		log.Fatalf("arguments config merge failed, %s\n", err)
+		logger.Fatal("arguments config merge failed, %s\n", err)
 	}
 
 	return &merged

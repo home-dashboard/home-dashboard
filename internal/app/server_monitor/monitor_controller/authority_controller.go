@@ -10,7 +10,6 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"image/png"
-	"log"
 	"net/http"
 )
 
@@ -50,7 +49,7 @@ func Authorize(context *gin.Context) {
 
 	if err := session.Save(); err != nil {
 		_ = context.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
-		log.Printf("save session failed, %s\n", err)
+		logger.Info("save session failed, %s\n", err)
 	}
 
 	context.JSON(http.StatusOK, gin.H{
@@ -75,7 +74,7 @@ func Unauthorize(context *gin.Context) {
 
 	if err := session.Save(); err != nil {
 		_ = context.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
-		log.Printf("save session failed, %s\n", err)
+		logger.Info("save session failed, %s\n", err)
 	}
 
 }
@@ -213,6 +212,6 @@ func Generate2FABindingQRCode(c *gin.Context) {
 func saveSession(c *gin.Context, session sessions.Session) {
 	if err := session.Save(); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
-		log.Printf("save session failed, %s\n", err)
+		logger.Info("save session failed, %s\n", err)
 	}
 }
