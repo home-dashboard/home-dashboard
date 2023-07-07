@@ -8,17 +8,19 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_realtime"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 	"github.com/siaikin/home-dashboard/internal/pkg/cache"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/notification"
 	"github.com/siaikin/home-dashboard/third_party"
 	"io"
-	"log"
 	"net/http"
 )
+
+var logger = comfy_log.New("[notification]")
 
 var collectConfigCache = cache.New("collectConfig")
 
 func Notification(c *gin.Context) {
-	log.Println("receive notification connection")
+	logger.Info("receive notification connection\n")
 
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
@@ -82,20 +84,20 @@ func Notification(c *gin.Context) {
 		},
 	})
 	if err := third_party.DispatchEvent(third_party.NewNotificationChannelConnectedEvent(c)); err != nil {
-		log.Printf("dispatch notification channel connected event failed, %s\n", err)
+		logger.Info("dispatch notification channel connected event failed, %s\n", err)
 	}
 
 	var listener = notification.GetListener()
 	var listenerCh = listener.Ch()
 	defer func() {
 		listener.Close()
-		log.Println("listener close complete")
+		logger.Info("listener close complete\n")
 	}()
 	c.Stream(func(w io.Writer) bool {
 		defer func() {
 			err := recover()
 			if err != nil {
-				log.Printf("system stat send failed, %s\n", err)
+				logger.Info("system stat send failed, %s\n", err)
 			}
 		}()
 
@@ -125,7 +127,7 @@ func Notification(c *gin.Context) {
 		return true
 	})
 
-	log.Println("notification connection finish")
+	logger.Info("notification connection finish\n")
 }
 
 // ModifyCollectStat 用于控制 Notification 收集的实时统计数据的类型.
@@ -146,7 +148,7 @@ func ModifyCollectStat(context *gin.Context) {
 	if err := copier.CopyWithOption(&statConfig, &body, copier.Option{
 		DeepCopy: true,
 	}); err != nil {
-		log.Printf("collect stat config merge failed, %s\n", err)
+		logger.Info("collect stat config merge failed, %s\n", err)
 	}
 
 	collectConfigCache.Set(user.Username, statConfig)

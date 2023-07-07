@@ -72,7 +72,7 @@ func DispatchEvent(event ThirdPartyEventImpl) error {
 		}
 	}
 
-	logger.Info("dispatch event: %s to %s success", event.GetType(), strings.Join(getModuleNames(), ", "))
+	logger.Info("dispatch event: %s to %s success\n", event.GetType(), strings.Join(getModuleNames(), ", "))
 	return nil
 }
 

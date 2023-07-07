@@ -11,11 +11,13 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/user_notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"gorm.io/gorm"
-	"log"
 	"time"
 )
+
+var logger = comfy_log.New("[server_monitor]")
 
 var ctx context.Context
 var cancel context.CancelFunc
@@ -37,19 +39,16 @@ func Initial(db *gorm.DB) {
 }
 
 func Start(port uint) {
-	monitor_realtime.StartSystemRealtimeStatLoop(time.Second)
-	monitor_process_realtime.StartRealtimeLoop(time.Second)
-
 	ctx, cancel = context.WithCancel(context.Background())
+
+	monitor_realtime.Loop(ctx, time.Second)
+	monitor_process_realtime.Loop(ctx, time.Second)
 	user_notification.StartListenUserNotificationNotify(ctx)
 
 	startServer(port, configuration.Get().ServerMonitor.Development.Enable)
 }
 
 func Stop() {
-	monitor_realtime.StopSystemRealtimeStatLoop()
-	monitor_process_realtime.StopRealtimeLoop()
-
 	cancel()
 
 	stopServer(5 * time.Second)
@@ -75,7 +74,7 @@ func initialDeviceTable() error {
 	for _, v := range systemStat.Cpu {
 		cpuInfo := monitor_model.StoredSystemCpuInfo{}
 		if err := copier.Copy(&cpuInfo, &v.InfoStat); err != nil {
-			log.Printf("cpoy failed, %s", err)
+			logger.Info("copy failed, %s\n", err)
 			return err
 		}
 
@@ -85,7 +84,7 @@ func initialDeviceTable() error {
 	for _, v := range systemStat.Disk {
 		diskInfo := monitor_model.StoredSystemDiskInfo{}
 		if err := copier.Copy(&diskInfo, &v.PartitionStat); err != nil {
-			log.Printf("cpoy failed, %s", err)
+			logger.Info("copy failed, %s\n", err)
 			return err
 		}
 

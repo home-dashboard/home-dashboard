@@ -6,7 +6,15 @@ import (
 	"path/filepath"
 )
 
-var WorkspaceDir = getWorkspaceDir()
+var workspaceDir string
+
+func WorkspaceDir() string {
+	if workspaceDir == "" {
+		workspaceDir = getWorkspaceDir()
+	}
+
+	return workspaceDir
+}
 
 func getWorkspaceDir() string {
 	var execPath string

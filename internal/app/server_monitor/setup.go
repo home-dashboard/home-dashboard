@@ -11,23 +11,19 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
-	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"github.com/siaikin/home-dashboard/internal/pkg/sessions"
 	"github.com/siaikin/home-dashboard/third_party"
 	"github.com/siaikin/home-dashboard/web/web_submodules"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
 )
 
-var logger = comfy_log.New("[server_monitor]")
-
 func setupEngine(mock bool) *gin.Engine {
 	r := gin.Default()
 	if err := r.SetTrustedProxies(nil); err != nil {
-		log.Printf("server set proxy failed, %s\n", err)
+		logger.Info("server set proxy failed, %s\n", err)
 		return nil
 	}
 
@@ -65,12 +61,12 @@ func setupEngine(mock bool) *gin.Engine {
 
 		if err := session.Save(); err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
-			log.Printf("save session failed, %s\n", err)
+			logger.Info("save session failed, %s\n", err)
 		}
 	})
 
 	if mock {
-		log.Println("server starting mock mode")
+		logger.Info("server starting mock mode\n")
 
 		r.Use(cors.New(cors.Config{
 			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
@@ -168,7 +164,7 @@ func startServer(port uint, mock bool) {
 
 	// 嵌入 home-dashboard-web-ui 静态资源
 	if err := web_submodules.EmbedHomeDashboardWebUI(engine); err != nil {
-		log.Fatalf("embed home-dashboard-web-ui failed, %s\n", err)
+		logger.Fatal("embed home-dashboard-web-ui failed, %s\n", err)
 	}
 
 	server = &http.Server{
@@ -177,9 +173,9 @@ func startServer(port uint, mock bool) {
 	}
 
 	go func() {
-		log.Printf("server listening and serving on port %s\n", portStr)
+		logger.Info("server listening and serving on port %s\n", portStr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			logger.Fatal("listen: %s\n", err)
 		}
 	}()
 }
@@ -192,12 +188,12 @@ func stopServer(timeout time.Duration) {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalln("server forced to shutdown: ", err)
+		logger.Fatal("server forced to shutdown: %v\n", err)
 	}
 
 	if err := third_party.Unload(); err != nil {
-		log.Fatalln("third party service stop failed, ", err)
+		logger.Fatal("third party service stop failed, %v\n", err)
 	}
 
-	log.Println("server graceful shutdown")
+	logger.Info("server graceful shutdown\n")
 }

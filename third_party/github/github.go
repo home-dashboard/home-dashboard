@@ -2,8 +2,8 @@ package github
 
 import (
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
 	"github.com/siaikin/home-dashboard/third_party/internal"
@@ -15,9 +15,9 @@ func load(context context.Context, router *gin.RouterGroup) error {
 
 	// 校验参数
 	if !githubConfig.Enable {
-		return fmt.Errorf("third party service are used, but not enabled in configuration file")
+		return comfy_errors.NewResponseError(comfy_errors.UnknownError, "third party service are used, but not enabled in configuration file")
 	} else if len(githubConfig.PersonalAccessToken) <= 0 {
-		return fmt.Errorf("personal access token is empty")
+		return comfy_errors.NewResponseError(comfy_errors.UnknownError, "personal access token is empty")
 	}
 
 	logger.Info("load with apiKey: \"%s\"\n", utils.MaskToken(githubConfig.PersonalAccessToken))

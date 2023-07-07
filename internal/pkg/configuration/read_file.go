@@ -6,7 +6,6 @@ import (
 	"github.com/jinzhu/copier"
 	"github.com/siaikin/home-dashboard/configs/config_template"
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
-	"log"
 	"os"
 	"path"
 	"time"
@@ -29,27 +28,27 @@ func parseFile() *Configuration {
 }
 
 func generateOrReadConfigFile() *Configuration {
-	filePath := path.Join(utils.WorkspaceDir, DefaultConfigFilename)
+	filePath := path.Join(utils.WorkspaceDir(), DefaultConfigFilename)
 
 	var configFile *os.File
 
 	// 创建 or 打开配置文件
-	if !utils.FileExist(filePath) {
+	if exist, err := utils.FileExist(filePath); !exist || err != nil {
 		file, err := os.Create(filePath)
 		if err != nil {
-			log.Fatalf("config file create failed, %s\n", err)
+			logger.Fatal("config file create failed, %s\n", err)
 		}
 		configFile = file
 
 		_, err = file.WriteString(config_template.ConfigTemplateToml)
 		if err != nil {
-			log.Fatalf("config file write failed, %s\n", err)
+			logger.Fatal("config file write failed, %s\n", err)
 		}
 
-		log.Printf("default config file is created in %s\n", filePath)
+		logger.Info("default config file is created in %s\n", filePath)
 	} else {
 		if file, err := os.Open(filePath); err != nil {
-			log.Fatalf("config file open failed, %s\n", err)
+			logger.Fatal("config file open failed, %s\n", err)
 		} else {
 			configFile = file
 		}
@@ -57,13 +56,13 @@ func generateOrReadConfigFile() *Configuration {
 	// 获取文件修改时间
 	var modificationTime time.Time
 	if fileInfo, err := configFile.Stat(); err != nil {
-		log.Fatalf("get stat failed, %s\n", err)
+		logger.Fatal("get stat failed, %s\n", err)
 	} else {
 		modificationTime = fileInfo.ModTime()
 	}
 	// 关闭文件
 	if err := configFile.Close(); err != nil {
-		log.Fatalf("config file close failed, %s\n", err)
+		logger.Fatal("config file close failed, %s\n", err)
 	}
 
 	// 从配置文件中读取的配置信息
@@ -73,18 +72,18 @@ func generateOrReadConfigFile() *Configuration {
 	}
 	_, err := toml.DecodeFile(filePath, externalConfig)
 	if err != nil {
-		log.Fatalf("config file decode failed, %s\n", err)
+		logger.Fatal("config file decode failed, %s\n", err)
 	}
 
 	defaultConfig := &Configuration{}
 	_, err = toml.Decode(config_template.ConfigTemplateToml, defaultConfig)
 	if err != nil {
-		log.Fatalf("default config decode failed, %s\n", err)
+		logger.Fatal("default config decode failed, %s\n", err)
 	}
 
 	err = copier.CopyWithOption(defaultConfig, externalConfig, copier.Option{IgnoreEmpty: true, DeepCopy: true})
 	if err != nil {
-		log.Fatalf("merge config failed, %s\n", err)
+		logger.Fatal("merge config failed, %s\n", err)
 	}
 
 	return defaultConfig
