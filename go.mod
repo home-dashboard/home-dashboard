@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/BurntSushi/toml v1.2.1
+	github.com/dustin/go-humanize v1.0.1
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-contrib/gzip v0.0.6
 	github.com/gin-contrib/sessions v0.0.5
@@ -12,11 +13,16 @@ require (
 	github.com/google/go-github/v50 v50.2.0
 	github.com/google/go-querystring v1.1.0
 	github.com/jinzhu/copier v0.3.5
+	github.com/jinzhu/now v1.1.5
 	github.com/pquerna/otp v1.4.0
+	github.com/samber/lo v1.38.1
 	github.com/shirou/gopsutil/v3 v3.22.11
 	github.com/shurcooL/githubv4 v0.0.0-20230305132112-efb623903184
 	github.com/teivah/broadcast v0.1.0
+	golang.org/x/mod v0.12.0
+	golang.org/x/net v0.9.0
 	golang.org/x/oauth2 v0.6.0
+	golang.org/x/sync v0.3.0
 	golang.org/x/sys v0.7.0
 	gorm.io/gorm v1.24.3
 	gorm.io/plugin/soft_delete v1.2.0
@@ -41,7 +47,6 @@ require (
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
@@ -61,7 +66,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
-	golang.org/x/net v0.9.0 // indirect
+	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect

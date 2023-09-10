@@ -15,8 +15,8 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/sessions"
 	"github.com/siaikin/home-dashboard/third_party"
 	"github.com/siaikin/home-dashboard/web/web_submodules"
+	"net"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -155,9 +155,7 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 
 var server *http.Server
 
-func startServer(port uint, mock bool) {
-	portStr := strconv.FormatInt(int64(port), 10)
-
+func startServer(listener *net.Listener, mock bool) error {
 	engine := setupEngine(mock)
 
 	setupRouter(engine.Group("/v1/web"), mock)
@@ -168,32 +166,19 @@ func startServer(port uint, mock bool) {
 	}
 
 	server = &http.Server{
-		Addr:    ":" + portStr,
 		Handler: engine,
 	}
 
-	go func() {
-		logger.Info("server listening and serving on port %s\n", portStr)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("listen: %s\n", err)
-		}
-	}()
+	logger.Info("serving on port %s\n", server.Addr)
+	return server.Serve(*listener)
 }
 
-func stopServer(timeout time.Duration) {
-	// 优雅地关闭进程, 5秒后将强制结束进程
-	// ctx 用于通知服务器有5秒来结束当前正在处理的请求
-	// https://github.com/gin-gonic/examples/blob/master/graceful-shutdown/graceful-shutdown/notify-without-context/server.go
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
+func stopServer(ctx context.Context) {
 	if err := server.Shutdown(ctx); err != nil {
-		logger.Fatal("server forced to shutdown: %v\n", err)
+		logger.Error("server forced to shutdown: %v\n", err)
 	}
 
 	if err := third_party.Unload(); err != nil {
-		logger.Fatal("third party service stop failed, %v\n", err)
+		logger.Error("third party service stop failed, %v\n", err)
 	}
-
-	logger.Info("server graceful shutdown\n")
 }
