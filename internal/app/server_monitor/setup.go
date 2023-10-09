@@ -147,6 +147,9 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 	// 获取配置的更新信息
 	authorizedAnd2faValidated.GET("configuration/updates", monitor_controller.GetChangedConfiguration)
 
+	// 服务升级接口
+	authorizedAnd2faValidated.POST("upgrade", monitor_controller.Upgrade)
+
 	// 启用第三方服务
 	if err := third_party.Load(authorizedAnd2faValidated); err != nil {
 		logger.Fatal("third party service start failed, %s.\n", err)

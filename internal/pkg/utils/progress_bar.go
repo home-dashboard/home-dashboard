@@ -33,7 +33,10 @@ func CopyWithProgress(source io.Reader, totalLength uint64, destination io.Write
 			if err != nil {
 				if err == io.EOF {
 					written += uint64(n)
-					onProgress(written, total)
+					// 出现了 io.EOF 并且不是读取完毕的状态时, 触发 onProgress
+					if written != total {
+						onProgress(written, total)
+					}
 					return nil
 				} else {
 					return err
@@ -41,6 +44,7 @@ func CopyWithProgress(source io.Reader, totalLength uint64, destination io.Write
 			}
 
 			written += uint64(n)
+			// 循环十次或者读取完毕时, 触发 onProgress
 			if i%10 == 0 || written == total {
 				onProgress(written, total)
 			}

@@ -26,8 +26,6 @@ var (
 	date    = "unknown"
 )
 
-var config *configuration.Configuration
-
 var logger = comfy_log.New("[server_monitor]")
 
 func init() {
@@ -35,7 +33,7 @@ func init() {
 
 	flag.Parse()
 
-	config = configuration.Get()
+	config := configuration.Get()
 	if config.ServerMonitor.Port == 0 {
 		logger.Fatal("port %d is invalid\n", config.ServerMonitor.Port)
 	}
@@ -57,8 +55,10 @@ func main() {
 		logger.Fatal("makeOverseerConfig failed. %v\n", err)
 	}
 
+	overseerInstance := overseer.New(overseerConfig)
+
 	// 通过 overseer 启动主程序
-	termFunc, err := overseer.Run(func(props overseer.ProgramProps) error {
+	termFunc, err := overseerInstance.Run(func(props overseer.ProgramProps) error {
 		// 仅 worker 进程会启动程序
 		if !overseer.IsWorkerProcess {
 			logger.Fatal("current process is not worker process\n")
@@ -74,7 +74,7 @@ func main() {
 		server_monitor.Start(context.Background(), &listeners[0])
 
 		return nil
-	}, *overseerConfig)
+	})
 	if err != nil {
 		logger.Fatal("overseer.Run failed. %v\n", err)
 	}
@@ -99,14 +99,15 @@ func main() {
 	logger.Info("server stopped\n")
 }
 
-func makeOverseerConfig() (*overseer.Config, error) {
+func makeOverseerConfig() (overseer.Config, error) {
+	config := configuration.Get()
 	overseerConfig := overseer.Config{
 		Addresses: []string{":" + strconv.FormatInt(int64(config.ServerMonitor.Port), 10)},
 	}
 
 	updateConfig := config.ServerMonitor.Update
 	if !updateConfig.Enable {
-		return &overseerConfig, nil
+		return overseerConfig, nil
 	}
 
 	// 从配置文件中获取更新源
@@ -141,6 +142,9 @@ func makeOverseerConfig() (*overseer.Config, error) {
 	if updateConfig.FetchTimeout != 0 {
 		overseerConfig.FetchTimeout = updateConfig.FetchTimeout * time.Second
 	}
+	if updateConfig.Port != 0 {
+		overseerConfig.Port = updateConfig.Port
+	}
 
-	return &overseerConfig, nil
+	return overseerConfig, nil
 }

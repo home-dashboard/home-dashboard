@@ -38,7 +38,7 @@ func clientInitial(token string) error {
 var eTag string
 
 // GetLatestReleaseByETag 获取最新的发布版本, 并且根据 ETag 判断是否需要更新.
-// 如果 ETag 匹配, 则返回的 release 为 nil.
+// 如果 ETag 匹配, 则返回的 release 为 nil, 返回的 resp 状态码为 304 Not Modified.
 // 否则, 返回的 release 中包含最新的发布版本.
 func (c *client) GetLatestReleaseByETag(ctx context.Context, owner, repo string) (*github.RepositoryRelease, *github.Response, error) {
 	u := fmt.Sprintf("repos/%s/%s/releases/latest", owner, repo)
@@ -59,20 +59,19 @@ func (c *client) GetLatestReleaseByETag(ctx context.Context, owner, repo string)
 	}
 
 	release := new(github.RepositoryRelease)
-	resp, err := c.Do(ctx, req, release)
-	if err != nil {
+	if resp, err := c.Do(ctx, req, release); err != nil {
 		// 如果返回 304 Not Modified 响应, 则不需要更新.
-		if resp.StatusCode == http.StatusNotModified {
+		if resp != nil && resp.StatusCode == http.StatusNotModified {
 			return nil, resp, nil
 		} else {
-			return nil, resp, err
+			return nil, nil, err
 		}
+	} else {
+		// 获取 Last-Modified 响应头.
+		eTag = resp.Header.Get("ETag")
+
+		return release, resp, nil
 	}
-
-	// 获取 Last-Modified 响应头.
-	eTag = resp.Header.Get("ETag")
-
-	return release, resp, nil
 }
 
 type GitHubFetcher struct {
@@ -90,7 +89,8 @@ type GitHubFetcher struct {
 	OnProgress func(written, total uint64) `json:"onProgress"`
 
 	// latestETag
-	latestETag string
+	latestETag        string
+	latestReleaseInfo *github.RepositoryRelease
 }
 
 // Init validates the provided config
@@ -120,58 +120,72 @@ func (h *GitHubFetcher) Init() error {
 	return nil
 }
 
-// Fetch 从提供的仓库中获取二进制文件
-func (h *GitHubFetcher) Fetch() (io.ReadCloser, error) {
-	release, _, err := httpClient.GetLatestReleaseByETag(context.Background(), h.User, h.Repository)
+// Fetch 从提供的仓库中获取二进制文件. 如果 includeFile 为 false, 则只返回 AssetInfo.
+func (h *GitHubFetcher) Fetch(includeFile bool) (*AssetInfo, io.ReadCloser, FetchedBinaryUsedCallback, error) {
+	assetInfo := &AssetInfo{
+		FetcherName: h.GetName(),
+	}
+	release, resp, err := httpClient.GetLatestReleaseByETag(context.Background(), h.User, h.Repository)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
+	} else {
+		if resp.StatusCode == http.StatusNotModified {
+			release = h.latestReleaseInfo
+		} else if release != nil {
+			h.latestReleaseInfo = release
+		}
+
 	}
-	// 如果 release 为 nil, 则不需要更新.
-	if release == nil {
-		return nil, nil
-	}
+	assetInfo.Version = release.GetTagName()
+
 	// 比较版本号, 如果
 	// 1 当前版本号或 release 版本号非法
 	// 2 当前版本号大于等于 release 版本号
 	// 则不需要更新.
-	if !semver.IsValid(h.CurrentVersion) || !semver.IsValid(release.GetTagName()) || semver.Compare(h.CurrentVersion, release.GetTagName()) >= 0 {
-		logger.Info("current version %s, release version %s. no need to update", h.CurrentVersion, release.GetTagName())
-		return nil, nil
+	if !semver.IsValid(h.CurrentVersion) || !semver.IsValid(assetInfo.Version) || semver.Compare(h.CurrentVersion, assetInfo.Version) >= 0 {
+		logger.Info("current version %s, release version %s. no need to update", h.CurrentVersion, assetInfo.Version)
+		return nil, nil, nil, nil
+	}
+
+	if !includeFile {
+		return assetInfo, nil, nil, nil
 	}
 
 	matchedAsset := h.findMatchingAsset(release)
 	if matchedAsset == nil {
-		return nil, nil
+		return assetInfo, nil, nil, nil
 	}
 
 	// 创建临时目录
 	tempDir, err := utils.CreateTempDir("fetch_from_github")
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	defer func() {
 		_ = os.RemoveAll(tempDir)
 	}()
 
 	if err := h.downloadAndExtractArchive(matchedAsset, tempDir); err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	selectedFile, err := h.findSelectedFile(tempDir)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	// 读取二进制文件
-	if file, err := os.Open(selectedFile); err != nil {
-		return nil, err
-	} else if stat, err := file.Stat(); err != nil {
-		return nil, err
-	} else if stat.IsDir() {
-		return nil, fmt.Errorf("selectedFile is a directory")
+	if file, err := utils.FileOpenOnlyFile(selectedFile); err != nil {
+		return nil, nil, nil, err
 	} else {
-		return file, nil
+		return assetInfo, file, func() {
+			h.CurrentVersion = assetInfo.Version
+		}, nil
 	}
+}
+
+func (h *GitHubFetcher) GetName() string {
+	return "GitHub Fetcher"
 }
 
 // findMatchingAsset 查找匹配当前操作系统和架构的 [github.ReleaseAsset]
@@ -219,41 +233,41 @@ func (h *GitHubFetcher) downloadAndExtractArchive(matchedAsset *github.ReleaseAs
 		_ = os.Remove(tempFile.Name())
 	}()
 
-	//_, assetUrl, err := httpClient.Repositories.DownloadReleaseAsset(context.Background(), h.User, h.Repository, matchedAsset.GetID(), nil)
-	//if err != nil {
-	//	return err
-	//}
-
-	//req, err := http.NewRequest("GET", assetUrl, nil)
-	//if err != nil {
-	//	return err
-	//}
-	//req = req.WithContext(context.Background())
-	//req.Header.Set("Accept", "*/*")
-	//resp, err := http.DefaultClient.Do(req)
-	//if err != nil {
-	//	return err
-	//}
-	//defer func() {
-	//	_ = resp.Body.Close()
-	//}()
-	//
-	//// 将下载的文件写入临时文件
-	//if err := utils.CopyHttpResponseWithProgress(resp, tempFile, h.OnProgress); err != nil {
-	//	return err
-	//}
-
-	resp, err := os.Open("D:\\projects\\go_projects\\home-dashboard\\dist\\home-dashboard_1.2.0_Windows_x86_64.zip")
+	_, assetUrl, err := httpClient.Repositories.DownloadReleaseAsset(context.Background(), h.User, h.Repository, matchedAsset.GetID(), nil)
 	if err != nil {
 		return err
 	}
-	stat, err := resp.Stat()
+
+	req, err := http.NewRequest("GET", assetUrl, nil)
 	if err != nil {
 		return err
 	}
-	if err := utils.CopyWithProgress(resp, uint64(stat.Size()), tempFile, h.OnProgress); err != nil {
+	req = req.WithContext(context.Background())
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	// 将下载的文件写入临时文件
+	if err := utils.CopyHttpResponseWithProgress(resp, tempFile, h.OnProgress); err != nil {
+		return err
+	}
+
+	//resp, err := os.Open("D:\\projects\\go_projects\\home-dashboard\\dist\\home-dashboard_1.2.0_Windows_x86_64.zip")
+	//if err != nil {
+	//	return err
+	//}
+	//stat, err := resp.Stat()
+	//if err != nil {
+	//	return err
+	//}
+	//if err := utils.CopyWithProgress(resp, uint64(stat.Size()), tempFile, h.OnProgress); err != nil {
+	//	return err
+	//}
 
 	// 解压临时文件到临时目录
 	if err := utils.DecompressFile(tempFile.Name(), extractPath); err != nil {

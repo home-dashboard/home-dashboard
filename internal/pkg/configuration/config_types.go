@@ -71,6 +71,8 @@ type ServerMonitorUpdateConfiguration struct {
 	// 是否启用自动更新
 	// 默认为 false
 	Enable bool `json:"enable" toml:"enable"`
+	// 服务监听端口, 默认为 8081
+	Port uint `json:"port" toml:"port"`
 	// 更新检查的时间间隔, 单位为秒
 	// 默认为 10 分钟(600 秒)
 	FetchInterval time.Duration `json:"fetchInterval" toml:"fetchInterval"`

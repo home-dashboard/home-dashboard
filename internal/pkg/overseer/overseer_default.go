@@ -8,15 +8,6 @@ import (
 	"os"
 )
 
-const (
-	// TerminateSignal 通知 worker 退出
-	TerminateSignal = unix.SIGTERM
-	// InitialCompleteSignal worker 通知 manager 初始化完成
-	InitialCompleteSignal = unix.SIGUSR1
-	// TakeOverSignal manager 通知 worker 可以接管网络监听
-	TakeOverSignal = unix.SIGUSR1
-)
-
 var (
 	uid = unix.Getuid()
 	gid = unix.Getgid()
@@ -38,8 +29,9 @@ func chown(file *os.File, uid, gid int) error {
 	}
 }
 
+// sendTerminalSignal 向进程发送终止信号
 func sendTerminalSignal(proc *os.Process) error {
-	return proc.Signal(m.Config.TerminateSignal)
+	return proc.Signal(unix.SIGTERM)
 }
 
 func SetCommandSysProcAttr(cmd *exec.Cmd) {

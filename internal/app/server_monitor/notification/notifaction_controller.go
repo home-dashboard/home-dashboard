@@ -10,6 +10,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/cache"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/notification"
+	"github.com/siaikin/home-dashboard/internal/pkg/overseer"
 	"github.com/siaikin/home-dashboard/third_party"
 	"io"
 	"net/http"
@@ -30,8 +31,6 @@ func Notification(c *gin.Context) {
 	c.SSEvent("message", "notification channel connected")
 
 	session := sessions.Default(c)
-
-	var _collectConfig = getCollectStatConfig(session)
 
 	// 发送系统实时统计信息
 	sendSystemRealtimeStatMessage := func(c *gin.Context, collectConfig CollectStatConfig, message notification.Message) {
@@ -67,22 +66,32 @@ func Notification(c *gin.Context) {
 		c.SSEvent(message.Type, message.Data)
 	}
 
+	var collectStatConfig = getCollectStatConfig(session)
+
 	// 通知信道连接成功时, 立即发送一次实时统计信息. 以便客户端能够立即显示统计信息.
 	// 立即发送的实时统计信息包含系统实时统计信息, 进程实时统计信息以及第三方模块的实时统计信息.
-	sendSystemRealtimeStatMessage(c, _collectConfig, notification.Message{
+	sendSystemRealtimeStatMessage(c, collectStatConfig, notification.Message{
 		Type: monitor_realtime.MessageType,
 		Data: map[string]interface{}{
 			monitor_realtime.MessageType: monitor_realtime.GetCachedSystemRealtimeStat(),
 		},
 	})
-
 	processes, _ := monitor_process_realtime.GetRealtimeStat(-1)
-	sendProcessRealtimeStatMessage(c, _collectConfig, notification.Message{
+	sendProcessRealtimeStatMessage(c, collectStatConfig, notification.Message{
 		Type: monitor_process_realtime.MessageType,
 		Data: map[string]interface{}{
 			monitor_process_realtime.MessageType: processes,
 		},
 	})
+	if overseerInst, err := overseer.Get(); err == nil {
+		if versionInfo, err := overseerInst.LatestVersionInfo(); err == nil {
+			c.SSEvent("newVersionFind", versionInfo)
+		} else {
+			logger.Info("get latest version info failed, %s\n", err)
+		}
+	} else {
+		logger.Info("get overseer instance failed, %s\n", err)
+	}
 	if err := third_party.DispatchEvent(third_party.NewNotificationChannelConnectedEvent(c)); err != nil {
 		logger.Info("dispatch notification channel connected event failed, %s\n", err)
 	}
@@ -106,20 +115,21 @@ func Notification(c *gin.Context) {
 			return false
 		}
 
-		_collectConfig = getCollectStatConfig(session)
+		collectStatConfig = getCollectStatConfig(session)
 
 		switch message.Type {
 		case monitor_realtime.MessageType:
-			if _collectConfig.System.Enable {
-				sendSystemRealtimeStatMessage(c, _collectConfig, message)
+			if collectStatConfig.System.Enable {
+				sendSystemRealtimeStatMessage(c, collectStatConfig, message)
 			}
 			break
 		case monitor_process_realtime.MessageType:
-			if _collectConfig.Process.Enable {
-				sendProcessRealtimeStatMessage(c, _collectConfig, message)
+			if collectStatConfig.Process.Enable {
+				sendProcessRealtimeStatMessage(c, collectStatConfig, message)
 			}
 			break
 		case "userNotification":
+		case overseer.StatusMessageType:
 			c.SSEvent(message.Type, message.Data)
 			break
 		}
@@ -167,7 +177,7 @@ func getCollectStatConfig(session sessions.Session) CollectStatConfig {
 	user := getAuthInfo(session)
 
 	cachedConfig, ok := collectConfigCache.Get(user.Username)
-	if ok == false {
+	if !ok {
 		cachedConfig = DefaultCollectStatConfig()
 		collectConfigCache.Set(user.Username, cachedConfig)
 	}

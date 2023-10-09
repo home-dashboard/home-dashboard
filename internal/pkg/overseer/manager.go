@@ -2,6 +2,8 @@ package overseer
 
 import (
 	"fmt"
+	"github.com/dustin/go-humanize"
+	"github.com/samber/lo"
 	"github.com/siaikin/home-dashboard/internal/pkg/overseer/fetcher"
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
 	"golang.org/x/net/context"
@@ -11,27 +13,18 @@ import (
 	"time"
 )
 
-type managerStatus int
-
-const (
-	// managerStatusRunning manager 正在运行
-	managerStatusRunning managerStatus = iota
-	// managerStatusRestarting manager 正在重启
-	managerStatusRestarting
-	managerStatusDestroyed
-)
-
 // manager 在当前进程运行, 负责管理 worker 的生命周期.
 type manager struct {
 	Config Config
 	Worker workerProxy
-	Status managerStatus
 	// BinPath 用于标识当前进程的二进制文件的路径.
 	BinPath string
 	// BinHash 用于标识当前进程的二进制文件的 hash 值.
 	BinHash string
 	// BinPermissions 用于标识当前进程的二进制文件的权限.
-	BinPermissions os.FileMode
+	BinPermissions  os.FileMode
+	LatestAssetInfo *fetcher.AssetInfo
+	status          Status
 }
 
 // Initial 将初始化 manager, 并开始检查更新.
@@ -39,7 +32,7 @@ func (m *manager) Initial(ctx context.Context) error {
 	logger.Info("initializing manager")
 
 	// 设置初始状态值
-	m.Status = managerStatusRunning
+	m.status = StatusRunning
 
 	if err := m.setBinaryInfo(); err != nil {
 		return err
@@ -59,13 +52,25 @@ func (m *manager) Initial(ctx context.Context) error {
 	return nil
 }
 
+// Upgrade 使用名为 [fetcher.AssetInfo.FetcherName] 的 fetcher.Fetcher 获取最新的二进制文件并替换当前进程.
+func (m *manager) Upgrade(fetcherName string) error {
+	timeoutCtx, _ := context.WithTimeout(context.Background(), m.Config.FetchTimeout)
+
+	return m.upgrade(timeoutCtx, fetcherName)
+}
+
+// Status 返回当前 manager 的状态.
+func (m *manager) Status() Status {
+	return m.status
+}
+
 // Destroy 会销毁 manager, 并终止 worker.
 func (m *manager) Destroy(ctx context.Context) {
 	// 终止 worker
 	_ = m.terminateWorker(ctx)
 
 	// 标记状态为已销毁
-	m.Status = managerStatusDestroyed
+	m.status = StatusDestroyed
 }
 
 func (m *manager) setBinaryInfo() error {
@@ -107,12 +112,20 @@ func (m *manager) checkNewVersions(ctx context.Context) {
 		select {
 		case <-timer.C:
 			for _, item := range m.Config.Fetchers {
-				timeoutCtx, _ := context.WithTimeout(ctx, m.Config.FetchTimeout)
+				logger.Info("checking new version from %s", item.GetName())
+
 				// 检查是否有新版本可用
-				if err := m.checkNewVersion(timeoutCtx, item); err != nil {
-					logger.Error("failed to check new version: %v", err)
+				if assetInfo := m.checkNewVersion(item); assetInfo != nil {
+					logger.Info("new version found: %s", assetInfo.Version)
+
+					m.LatestAssetInfo = assetInfo
+					// 通知用户有新版本可用
+					go m.Config.OnNewVersionFind(assetInfo)
+				} else {
+					logger.Info("no new version found")
 				}
 			}
+
 			timer.Reset(m.Config.FetchInterval)
 		case <-ctx.Done():
 			return
@@ -193,11 +206,12 @@ func (m *manager) terminateWorker(ctx context.Context) error {
 	}
 }
 
-// upgradeWorker 只是组合了 terminateWorker 和 runWorker 的逻辑. 先终止当前子进程, 再启动新的子进程.
-func (m *manager) upgradeWorker(ctx context.Context) error {
+// restartWorker 只是组合了 terminateWorker 和 runWorker 的逻辑. 先终止当前子进程, 再启动新的子进程.
+func (m *manager) restartWorker(ctx context.Context) error {
+	logger.Info("worker restarting...\n")
+
 	// 标记状态为重启中
-	m.Status = managerStatusRestarting
-	logger.Info("upgrading worker\n")
+	m.status = StatusRestarting
 
 	terminateCxt, cancel := context.WithTimeout(ctx, m.Config.TerminateTimeout)
 	defer cancel()
@@ -212,26 +226,65 @@ func (m *manager) upgradeWorker(ctx context.Context) error {
 	}
 
 	// 标记状态为运行中
-	m.Status = managerStatusRunning
-	logger.Info("worker upgraded\n")
+	m.status = StatusRunning
 
+	logger.Info("worker restarted\n")
 	return nil
 }
 
-// checkNewVersion 会检查是否有新版本可用, 如果有, 则会调用 upgradeWorker 升级.
-func (m *manager) checkNewVersion(ctx context.Context, fetcher fetcher.Fetcher) error {
-	// 正在重启时, 跳过.
-	if m.Status == managerStatusRestarting {
+// checkNewVersion 会检查是否有新版本可用, 如果有, 则会调用 restartWorker 升级.
+func (m *manager) checkNewVersion(fetcher fetcher.Fetcher) *fetcher.AssetInfo {
+	if m.status.Type != StatusTypeRunning {
 		return nil
 	}
 
-	logger.Info("checking new version")
+	assetInfo, _, _, err := fetcher.Fetch(false)
+	if err != nil {
+		return nil
+	}
+	if assetInfo == nil {
+		return nil
+	}
 
-	reader, err := fetcher.Fetch()
+	return assetInfo
+}
+
+func (m *manager) upgrade(ctx context.Context, fetcherName string) error {
+	if m.status.Type != StatusTypeRunning {
+		return nil
+	}
+
+	m.status = StatusUpgrading
+
+	// 根据 fetcherName 匹配 fetcher
+	f, ok := lo.Find(m.Config.Fetchers, func(f fetcher.Fetcher) bool {
+		return f.GetName() == fetcherName
+	})
+	if !ok {
+		return fmt.Errorf("fetcher %s not found", fetcherName)
+	}
+
+	// 目前仅支持 fetcher.GitHubFetcher
+	_f, ok := f.(*fetcher.GitHubFetcher)
+	if !ok {
+		return fmt.Errorf("fetcher %s not support upgrade", _f.GetName())
+	}
+
+	// 覆盖原有的 OnProgress 回调, 用于更新状态文本
+	originalOnProgress := _f.OnProgress
+	_f.OnProgress = func(written, total uint64) {
+		originalOnProgress(written, total)
+		m.status.Text = fmt.Sprintf("downloading %f%% (%s/%s)", float64(written)/float64(total)*100, humanize.Bytes(written), humanize.Bytes(total))
+	}
+
+	assetInfo, reader, callback, err := _f.Fetch(true)
 	if err != nil {
 		return err
 	}
 	if reader == nil {
+		return nil
+	}
+	if assetInfo == nil {
 		return nil
 	}
 
@@ -252,7 +305,7 @@ func (m *manager) checkNewVersion(ctx context.Context, fetcher fetcher.Fetcher) 
 	}()
 
 	// 将新版本写入临时文件
-	logger.Info("writing new version to temp file")
+	logger.Info("[upgrade] writing new version to temp file")
 	if _, err := io.Copy(tempFile, reader); err != nil {
 		return err
 	}
@@ -263,7 +316,7 @@ func (m *manager) checkNewVersion(ctx context.Context, fetcher fetcher.Fetcher) 
 		return err
 	}
 	if hash == m.BinHash {
-		logger.Info("hash equal, no new version")
+		logger.Info("[upgrade] hash equal, no new version")
 		return nil
 	}
 
@@ -278,30 +331,32 @@ func (m *manager) checkNewVersion(ctx context.Context, fetcher fetcher.Fetcher) 
 	}
 
 	if err := m.Config.OnBeforeUpgrade(); err != nil {
-		logger.Warn("upgrade canceled by OnBeforeUpgrade")
+		logger.Warn("[upgrade] canceled by OnBeforeUpgrade")
 		return err
 	}
 
 	// 关闭临时文件, 避免冲突.
-	logger.Info("closing temp file to avoid conflict")
 	if err := tempFile.Close(); err != nil {
 		return err
 	}
 
 	// 替换可执行文件.
-	logger.Info("replacing executable file")
+	logger.Info("[upgrade] replacing executable file...")
 	if err := replaceExecutableFile(tempFile.Name(), m.BinPath); err != nil {
 		return err
 	}
-
-	logger.Info("replaced executable file, upgrading")
+	logger.Info("[upgrade] replaced executable file, upgrading...")
 
 	m.BinHash = hash
 
 	// 重启子进程
-	if err := m.upgradeWorker(ctx); err != nil {
+	if err := m.restartWorker(ctx); err != nil {
 		return fmt.Errorf("upgrade worker failed: %w", err)
 	}
+	logger.Info("[upgrade] worker upgraded")
+
+	// 成功启动新的子进程后, 执行回调函数
+	callback()
 
 	return nil
 }
