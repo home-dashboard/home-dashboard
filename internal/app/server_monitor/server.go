@@ -14,13 +14,12 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"gorm.io/gorm"
+	"net"
+	"net/http"
 	"time"
 )
 
 var logger = comfy_log.New("[server_monitor]")
-
-var ctx context.Context
-var cancel context.CancelFunc
 
 func Initial(db *gorm.DB) {
 	monitor_db.Initial(db)
@@ -38,20 +37,24 @@ func Initial(db *gorm.DB) {
 	}
 }
 
-func Start(port uint) {
-	ctx, cancel = context.WithCancel(context.Background())
-
+func Start(ctx context.Context, listener *net.Listener) {
 	monitor_realtime.Loop(ctx, time.Second)
 	monitor_process_realtime.Loop(ctx, time.Second)
 	user_notification.StartListenUserNotificationNotify(ctx)
 
-	startServer(port, configuration.Get().ServerMonitor.Development.Enable)
+	go func() {
+		if err := startServer(listener, configuration.Get().ServerMonitor.Development.Enable); err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				logger.Info("err: %v, don't worry, it's normal\n", err)
+			} else {
+				logger.Fatal("start server failed, %w\n", err)
+			}
+		}
+	}()
 }
 
-func Stop() {
-	cancel()
-
-	stopServer(5 * time.Second)
+func Stop(ctx context.Context) {
+	stopServer(ctx)
 }
 
 func initialDeviceTable() error {

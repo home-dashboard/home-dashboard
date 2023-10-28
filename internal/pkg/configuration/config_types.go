@@ -2,6 +2,7 @@ package configuration
 
 import (
 	"encoding/json"
+	"time"
 )
 
 type ServerMonitorConfiguration struct {
@@ -13,6 +14,8 @@ type ServerMonitorConfiguration struct {
 	Development ServerMonitorDevelopmentConfiguration `json:"development" toml:"development"`
 	// 第三放服务配置
 	ThirdParty ServerMonitorThirdPartyConfiguration `json:"thirdParty" toml:"thirdParty"`
+	// 用于检查服务更新的配置
+	Update ServerMonitorUpdateConfiguration `json:"update" toml:"update"`
 }
 
 type ServerMonitorAdministratorConfiguration struct {
@@ -60,6 +63,41 @@ type ServerMonitorThirdPartyGitHubConfiguration struct {
 	// GitHub 访问令牌, 用于访问 GitHub API
 	// See https://docs.github.com/zh/rest/overview/authenticating-to-the-rest-api?apiVersion=2022-11-28#%E4%BD%BF%E7%94%A8-personal-access-token-%E8%BF%9B%E8%A1%8C%E8%BA%AB%E4%BB%BD%E9%AA%8C%E8%AF%81
 	PersonalAccessToken string `json:"personalAccessToken" toml:"personalAccessToken"`
+}
+
+// ServerMonitorUpdateConfiguration 用于检查服务更新的配置.
+// 通过实现 [github.com/siaikin/home-dashboard/internal/pkg/overseer/fetcher.Fetcher] 接口来对接不同的更新检查服务.
+type ServerMonitorUpdateConfiguration struct {
+	// 是否启用自动更新
+	// 默认为 false
+	Enable bool `json:"enable" toml:"enable"`
+	// 服务监听端口, 默认为 8081
+	Port uint `json:"port" toml:"port"`
+	// 更新检查的时间间隔, 单位为秒
+	// 默认为 10 分钟(600 秒)
+	FetchInterval time.Duration `json:"fetchInterval" toml:"fetchInterval"`
+	// 更新检查的超时时间, 单位为秒. 详细说明见 [github.com/siaikin/home-dashboard/internal/pkg/overseer.Config.FetchTimeout]
+	// 默认为 10 分钟(600 秒)
+	FetchTimeout time.Duration `json:"fetchTimeout" toml:"fetchTimeout"`
+	// 配置用于检查更新的 Fetcher.
+	Fetchers ServerMonitorUpdateFetchersConfiguration `json:"fetchers" toml:"fetchers"`
+}
+
+// ServerMonitorUpdateFetchersConfiguration 用于检查服务更新的 Fetcher 的配置.
+type ServerMonitorUpdateFetchersConfiguration struct {
+	// GitHub Fetcher 的配置
+	GitHub ServerMonitorUpdateFetcherGitHubConfiguration `json:"github" toml:"github"`
+}
+
+// ServerMonitorUpdateFetcherGitHubConfiguration 用于配置跟 GitHub 对接的 Fetcher.
+// See [github.com/siaikin/home-dashboard/internal/pkg/overseer/fetcher.GitHubFetcher]
+type ServerMonitorUpdateFetcherGitHubConfiguration struct {
+	// GitHub 访问令牌, 用于访问 GitHub API. 未配置时, 将会使用 [ServerMonitorThirdPartyGitHubConfiguration.PersonalAccessToken] 的值.
+	PersonalAccessToken string `json:"personalAccessToken" toml:"personalAccessToken"`
+	// GitHub 仓库的拥有者
+	Owner string `json:"owner" toml:"owner"`
+	// GitHub 仓库的名称
+	Repository string `json:"repository" toml:"repository"`
 }
 
 type Configuration struct {

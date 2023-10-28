@@ -15,6 +15,8 @@ builds:
       - linux
       - windows
       - darwin
+#   忽略 windows 32 位编译, 因为 go-sqlite 的依赖库 modernc.org/sqlite 不支持 windows 的 32 位编译.goarch:
+#   见 https://pkg.go.dev/modernc.org/sqlite#hdr-Supported_platforms_and_architectures
     ignore:
       - goos: windows
         goarch: "386"
@@ -22,13 +24,14 @@ builds:
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of uname.
-    name_template: >-
-      {{ .ProjectName }}_{{ .Version }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
+#    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+#    name_template: >-
+#      {{ .ProjectName }}_{{ .Version }}_
+#      {{- title .Os }}_
+#      {{- if eq .Arch "amd64" }}x86_64
+#      {{- else if eq .Arch "386" }}i386
+#      {{- else }}{{ .Arch }}{{ end }}
+#      {{- if .Arm }}v{{ .Arm }}{{ end }}
     # use zip for windows archives
     format_overrides:
     - goos: windows
