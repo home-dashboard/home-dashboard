@@ -142,7 +142,13 @@ func (h *GitHubFetcher) Fetch(includeFile bool) (*AssetInfo, io.ReadCloser, Fetc
 	// 1 当前版本号或 release 版本号非法
 	// 2 当前版本号大于等于 release 版本号
 	// 则不需要更新.
-	if !semver.IsValid(h.CurrentVersion) || !semver.IsValid(assetInfo.Version) || semver.Compare(h.CurrentVersion, assetInfo.Version) >= 0 {
+	if !semver.IsValid(h.CurrentVersion) {
+		logger.Info("current version %s is invalid, not need to update", h.CurrentVersion)
+		return nil, nil, nil, nil
+	} else if !semver.IsValid(assetInfo.Version) {
+		logger.Info("release version %s is invalid, not need to update", assetInfo.Version)
+		return nil, nil, nil, nil
+	} else if semver.Compare(h.CurrentVersion, assetInfo.Version) >= 0 {
 		logger.Info("current version %s, release version %s. no need to update", h.CurrentVersion, assetInfo.Version)
 		return nil, nil, nil, nil
 	}
