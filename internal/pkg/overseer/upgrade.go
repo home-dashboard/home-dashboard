@@ -1,12 +1,18 @@
 package overseer
 
-import "encoding/gob"
+import (
+	"encoding/gob"
+	"github.com/jinzhu/copier"
+)
 
 type StatusType int
 
 type Status struct {
 	Type StatusType `json:"type,omitempty"`
 	Text string     `json:"text,omitempty"`
+	// Extra 用于存储额外的信息, 例如进度等.
+	// 1. 在 StatusTypeUpgrading 状态时, 会存储 written, total 表示已下载的更新文件大小和更新文件总大小.
+	Extra map[string]any `json:"extra,omitempty"`
 }
 
 // 服务运行状态
@@ -36,4 +42,26 @@ const NewVersionMessageType = "overseer.NewVersionMessageType"
 
 func init() {
 	gob.Register(Status{})
+}
+
+func newStatus(statusType StatusType) Status {
+	status := Status{}
+
+	var defaultStatus = StatusRunning
+	switch statusType {
+	case StatusTypeRunning:
+		defaultStatus = StatusRunning
+	case StatusTypeUpgrading:
+		defaultStatus = StatusUpgrading
+	case StatusTypeRestarting:
+		defaultStatus = StatusRestarting
+	case StatusTypeDestroyed:
+		defaultStatus = StatusDestroyed
+	}
+
+	_ = copier.Copy(&status, &defaultStatus)
+
+	status.Extra = make(map[string]any)
+
+	return status
 }

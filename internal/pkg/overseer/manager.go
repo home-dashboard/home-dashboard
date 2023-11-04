@@ -32,7 +32,7 @@ func (m *manager) Initial(ctx context.Context) error {
 	logger.Info("initializing manager")
 
 	// 设置初始状态值
-	m.status = StatusRunning
+	m.status = newStatus(StatusTypeRunning)
 
 	if err := m.setBinaryInfo(); err != nil {
 		return err
@@ -70,7 +70,7 @@ func (m *manager) Destroy(ctx context.Context) {
 	_ = m.terminateWorker(ctx)
 
 	// 标记状态为已销毁
-	m.status = StatusDestroyed
+	m.status = newStatus(StatusTypeDestroyed)
 }
 
 func (m *manager) setBinaryInfo() error {
@@ -211,7 +211,7 @@ func (m *manager) restartWorker(ctx context.Context) error {
 	logger.Info("worker restarting...\n")
 
 	// 标记状态为重启中
-	m.status = StatusRestarting
+	m.status = newStatus(StatusTypeRestarting)
 
 	terminateCxt, cancel := context.WithTimeout(ctx, m.Config.TerminateTimeout)
 	defer cancel()
@@ -226,7 +226,7 @@ func (m *manager) restartWorker(ctx context.Context) error {
 	}
 
 	// 标记状态为运行中
-	m.status = StatusRunning
+	m.status = newStatus(StatusTypeRunning)
 
 	logger.Info("worker restarted\n")
 	return nil
@@ -254,7 +254,7 @@ func (m *manager) upgrade(ctx context.Context, fetcherName string) error {
 		return nil
 	}
 
-	m.status = StatusUpgrading
+	m.status = newStatus(StatusTypeUpgrading)
 
 	// 根据 fetcherName 匹配 fetcher
 	f, ok := lo.Find(m.Config.Fetchers, func(f fetcher.Fetcher) bool {
@@ -275,6 +275,8 @@ func (m *manager) upgrade(ctx context.Context, fetcherName string) error {
 	_f.OnProgress = func(written, total uint64) {
 		originalOnProgress(written, total)
 		m.status.Text = fmt.Sprintf("downloading %f%% (%s/%s)", float64(written)/float64(total)*100, humanize.Bytes(written), humanize.Bytes(total))
+		m.status.Extra["written"] = written
+		m.status.Extra["total"] = total
 	}
 
 	assetInfo, reader, callback, err := _f.Fetch(true)

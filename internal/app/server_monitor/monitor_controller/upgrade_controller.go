@@ -60,7 +60,7 @@ func Upgrade(context *gin.Context) {
 					logger.Error("get upgrade status failed. %v\n", err)
 				} else if statusText != status.Text {
 					// 通知前端更新进度
-					notification.Send(overseer.StatusMessageType, map[string]interface{}{"type": status.Type, "text": status.Text})
+					notification.Send(overseer.StatusMessageType, map[string]interface{}{"type": status.Type, "text": status.Text, "extra": status.Extra})
 
 					statusText = status.Text
 
