@@ -213,6 +213,9 @@ func (m *manager) restartWorker(ctx context.Context) error {
 	// 标记状态为重启中
 	m.status = newStatus(StatusTypeRestarting)
 
+	// 中断一秒, 以让下载进度, 升级状态等信息发出.
+	time.Sleep(time.Second * 2)
+
 	terminateCxt, cancel := context.WithTimeout(ctx, m.Config.TerminateTimeout)
 	defer cancel()
 	// 终止当前子进程
