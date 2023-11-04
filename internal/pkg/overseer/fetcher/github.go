@@ -137,6 +137,8 @@ func (h *GitHubFetcher) Fetch(includeFile bool) (*AssetInfo, io.ReadCloser, Fetc
 
 	}
 	assetInfo.Version = release.GetTagName()
+	assetInfo.ReleaseNotes = release.GetBody()
+	assetInfo.URL = release.GetHTMLURL()
 
 	// 比较版本号, 如果
 	// 1 当前版本号或 release 版本号非法
