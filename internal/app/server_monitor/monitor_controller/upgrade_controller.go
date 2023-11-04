@@ -5,6 +5,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/overseer"
+	"github.com/siaikin/home-dashboard/internal/pkg/verison_info"
 	"net/http"
 	"time"
 )
@@ -72,4 +73,26 @@ func Upgrade(context *gin.Context) {
 			}
 		}
 	}()
+}
+
+// Version
+// @Summary Version
+// @Description Version
+// @Tags Version
+// @Accept json
+// @Produce json
+// @Success 200 {object} VersionInfo
+// @Router /version [get]
+func Version(context *gin.Context) {
+	context.JSON(http.StatusOK, VersionInfo{
+		Version: verison_info.Version,
+		Commit:  verison_info.Commit,
+		Date:    verison_info.Date.UnixMilli(),
+	})
+}
+
+type VersionInfo struct {
+	Version string `json:"version"`
+	Commit  string `json:"commit"`
+	Date    int64  `json:"date"`
 }
