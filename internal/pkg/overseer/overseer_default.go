@@ -6,6 +6,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
 	"golang.org/x/sys/unix"
 	"os"
+	"os/exec"
 )
 
 var (
@@ -24,9 +25,11 @@ func replaceExecutableFile(newFilePath, oldFilePath string) error {
 
 func chown(file *os.File, uid, gid int) error {
 	// 继承 uid, gid
-	if err := tempFile.Chown(uid, gid); err != nil {
+	if err := file.Chown(uid, gid); err != nil {
 		return err
 	}
+
+	return nil
 }
 
 // sendTerminalSignal 向进程发送终止信号
