@@ -45,7 +45,7 @@ func init() {
 	// 保存版本信息
 	if date, err := time.Parse(time.RFC3339, date); err != nil {
 		now := time.Now()
-		logger.Error("parse date [%s] failed. use current time(%s) instead. %v\n", date, now.Format(time.RFC3339), err)
+		logger.Warn("parse date [%s] failed. use current time(%s) instead. %v\n", date, now.Format(time.RFC3339), err)
 		verison_info.Set(version, commit, now)
 	} else {
 		verison_info.Set(version, commit, date)

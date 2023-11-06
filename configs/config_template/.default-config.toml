@@ -1,6 +1,5 @@
 [serverMonitor]
 port = 8080
-mock = false
 
 [serverMonitor.administrator]
 username = "administrator"
@@ -19,4 +18,15 @@ apiUrl = ""
 
 [serverMonitor.thirdParty.github]
 enable = false
+personalAccessToken = ""
+
+[serverMonitor.update]
+enable = false
+port = 8081
+fetchInterval = 600
+fetchTimeout = 600
+
+[serverMonitor.update.fetchers.github]
+owner = "home-dashboard"
+repository = "home-dashboard"
 personalAccessToken = ""
