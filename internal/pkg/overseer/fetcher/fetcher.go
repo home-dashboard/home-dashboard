@@ -15,9 +15,10 @@ type Fetcher interface {
 }
 
 type AssetInfo struct {
-	FetcherName string `json:"fetcherName,omitempty"`
-	Version     string `json:"version,omitempty"`
-	//URL     *url.URL
+	FetcherName  string `json:"fetcherName,omitempty"`
+	Version      string `json:"version,omitempty"`
+	ReleaseNotes string `json:"releaseNotes,omitempty"`
+	URL          string `json:"url,omitempty"`
 }
 
 func init() {

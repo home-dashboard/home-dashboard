@@ -6,47 +6,36 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"io/fs"
 	"net/http"
+	"strings"
 )
 
 var logger = comfy_log.New("[web_submodules]")
 
-//go:embed all:home-dashboard-web-ui/build
+//go:embed all:home-dashboard-web-ui/dist
 var homeDashboardWebUiAssets embed.FS
 
+// htm 而不是 html? https://github.com/gin-gonic/gin/issues/2654#issuecomment-815823804
+var indexFilePath = "/"
+
 func EmbedHomeDashboardWebUI(engine *gin.Engine) error {
-	var unwrappedFs, appFs, assetsFs fs.FS
+	var extractedFs fs.FS
 	var err error
-	if unwrappedFs, err = fs.Sub(homeDashboardWebUiAssets, "home-dashboard-web-ui/build"); err != nil {
-		return err
-	}
-	// appFs 用于输出 home-dashboard-web-ui 的 css/js 文件
-	if appFs, err = fs.Sub(unwrappedFs, "_app"); err != nil {
-		return err
-	}
-	// assetsFs 用于输出 home-dashboard-web-ui 的静态资源文件
-	if assetsFs, err = fs.Sub(unwrappedFs, "_assets"); err != nil {
+	if extractedFs, err = fs.Sub(homeDashboardWebUiAssets, "home-dashboard-web-ui/dist/public"); err != nil {
 		return err
 	}
 
-	engine.StaticFileFS("/favicon.ico", "/favicon.png", http.FS(unwrappedFs))
-
+	httpExtractedFs := http.FS(extractedFs)
 	engine.NoRoute(func(c *gin.Context) {
-		c.Writer.WriteHeader(200)
+		filePath := strings.Trim(c.Request.URL.EscapedPath(), "/")
 
-		raw, err := fs.ReadFile(unwrappedFs, "index.html")
-		if err != nil {
-			logger.Warn("read index.html failed, %s\n", err)
-			return
+		if _, err = fs.ReadFile(extractedFs, filePath); err != nil {
+			filePath = indexFilePath
+			logger.Warn("filepath %s not found, redirect to %s\n", filePath, indexFilePath)
 		}
 
-		if _, err := c.Writer.Write(raw); err != nil {
-			logger.Warn("index.html write failed, %s\n", err)
-			return
-		}
+		logger.Info("filepath %s\n", filePath)
+		c.FileFromFS(filePath, httpExtractedFs)
 	})
-
-	engine.StaticFS("/_app", http.FS(appFs))
-	engine.StaticFS("/_assets", http.FS(assetsFs))
 
 	logger.Info("home-dashboard-web-ui mount complete\n")
 	return nil

@@ -87,7 +87,7 @@ func Notification(c *gin.Context) {
 	})
 	if overseerInst, err := overseer.Get(); err == nil {
 		if versionInfo, err := overseerInst.LatestVersionInfo(); err == nil {
-			c.SSEvent("newVersionFind", versionInfo)
+			c.SSEvent(overseer.NewVersionMessageType, versionInfo)
 		} else {
 			logger.Info("get latest version info failed, %s\n", err)
 		}

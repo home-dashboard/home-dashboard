@@ -2,6 +2,7 @@ package wakapi
 
 // [get-wakatimes-tats]: https://wakapi.dev/swagger-ui/swagger-ui/index.html#/wakatime/get-wakatimes-tats
 // [get-wakatime-projects]: https://wakapi.dev/swagger-ui/swagger-ui/index.html#/wakatime/get-wakatime-projects
+// [get-wakatime-summaries]: https://wakapi.dev/swagger-ui/swagger-ui/index.html#/wakatime/get-wakatime-summaries
 
 import (
 	"github.com/gin-gonic/gin"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // statsQueryParams 获取 Wakapi 统计数据的查询参数. 详情见 [get-wakatimes-tats].
@@ -36,7 +38,7 @@ func GetStats(c *gin.Context) {
 	// 也可以使用 "current" 表示当前用户.
 	userId, _ := c.Get("userId")
 
-	if req, err := client.Get(strings.Join([]string{"/api/compat/wakatime/v1/users/", userId.(string), "/stats/", _range}, "")); err != nil {
+	if req, err := client.Get(strings.Join([]string{"compat/wakatime/v1/users/", userId.(string), "/stats/", _range}, "")); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "create request failed, %w", err))
 	} else {
 		client.AppendQueryParams(req, url.Values{
@@ -71,7 +73,7 @@ func GetProjectList(c *gin.Context) {
 		panic(err)
 	}
 
-	if req, err := client.Get("/api/compat/wakatime/v1/users/current/projects"); err != nil {
+	if req, err := client.Get("compat/wakatime/v1/users/current/projects"); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "create request failed, %w", err))
 	} else if res, err := client.Send(req); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "send request failed, %w", err))
@@ -79,5 +81,49 @@ func GetProjectList(c *gin.Context) {
 		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "read response failed, %w", err))
 	} else {
 		c.String(http.StatusOK, str)
+	}
+}
+
+// summariesQueryParams 获取 Wakapi 摘要数据的查询参数. 详情见 [get-wakatime-summaries].
+type summariesQueryParams struct {
+	statsQueryParams
+	Range string `form:"range"`
+	Start int64  `form:"start"`
+	End   int64  `form:"end"`
+}
+
+func GetSummaries(c *gin.Context) {
+	var body summariesQueryParams
+	var err error
+
+	if err = c.ShouldBindQuery(&body); err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "bind query params failed, %w", err))
+		panic(err)
+	}
+
+	if req, err := client.Get("compat/wakatime/v1/users/current/summaries"); err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "create request failed, %w", err))
+	} else {
+		startTime := time.UnixMilli(body.Start)
+		endTime := time.UnixMilli(body.End)
+		client.AppendQueryParams(req, url.Values{
+			"range":            []string{body.Range},
+			"start":            []string{startTime.Format("2006-01-02")},
+			"end":              []string{endTime.Format("2006-01-02")},
+			"project":          []string{body.Project},
+			"language":         []string{body.Language},
+			"editor":           []string{body.Editor},
+			"operating_system": []string{body.OperatingSystem},
+			"machine":          []string{body.Machine},
+			"label":            []string{body.Label},
+		})
+
+		if res, err := client.Send(req); err != nil {
+			_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "send request failed, %w", err))
+		} else if str, err := client.ReadAsString(res); err != nil {
+			_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "read response failed, %w", err))
+		} else {
+			c.String(http.StatusOK, str)
+		}
 	}
 }
