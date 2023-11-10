@@ -156,6 +156,24 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 	// 获取版本信息
 	authorizedAnd2faValidated.GET("version", monitor_controller.Version)
 
+	// 书签相关接口
+	// -> 书签文件夹接口
+	authorizedAnd2faValidated.POST("shortcut/section/create", monitor_controller.CreateShortcutSection)
+	authorizedAnd2faValidated.GET("shortcut/section/list", monitor_controller.ListShortcutSections)
+	authorizedAnd2faValidated.PUT("shortcut/section/update/:id", monitor_controller.UpdateShortcutSection)
+	authorizedAnd2faValidated.DELETE("shortcut/section/delete/:id", monitor_controller.DeleteShortcutSection)
+	authorizedAnd2faValidated.DELETE("shortcut/section/delete/:id/items", monitor_controller.DeleteShortcutSectionItems)
+	// -> 书签接口
+	authorizedAnd2faValidated.GET("shortcut/item/extract-from-url", monitor_controller.ExtractShortcutItemInfoFromURL)
+	authorizedAnd2faValidated.POST("shortcut/item/create", monitor_controller.CreateShortcutItem)
+	authorizedAnd2faValidated.GET("shortcut/item/list", monitor_controller.ListShortcutItems)
+	authorizedAnd2faValidated.PUT("shortcut/item/update/:id", monitor_controller.UpdateShortcutItem)
+	authorizedAnd2faValidated.DELETE("shortcut/item/delete", monitor_controller.DeleteShortcutItem)
+	// -> 书签图标接口
+	authorizedAnd2faValidated.PUT("shortcut/icon/refresh", monitor_controller.RefreshShortcutIcons)
+	// -> 收集书签使用情况
+	authorizedAnd2faValidated.POST("shortcut/usage/collect", monitor_controller.CollectShortcutSectionItemUsages)
+
 	// 启用第三方服务
 	if err := third_party.Load(authorizedAnd2faValidated); err != nil {
 		logger.Fatal("third party service start failed, %s.\n", err)

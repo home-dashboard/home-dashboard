@@ -8,12 +8,12 @@ import (
 
 var logger = comfy_log.New("[monitor_db]")
 
-var db *gorm.DB
+var database *gorm.DB
 
-func Initial(_db *gorm.DB) {
-	db = _db
+func Initial(db *gorm.DB) {
+	database = db
 
-	if err := db.AutoMigrate(
+	if err := database.AutoMigrate(
 		&monitor_model.StoredSystemStat{},
 		&monitor_model.StoredSystemNetworkAdapterInfo{},
 		&monitor_model.StoredSystemDiskInfo{},
@@ -21,6 +21,10 @@ func Initial(_db *gorm.DB) {
 		&monitor_model.User{},
 		&monitor_model.StoredConfiguration{},
 		&monitor_model.StoredNotification{},
+		&monitor_model.ShortcutSection{},
+		&monitor_model.ShortcutItem{},
+		&monitor_model.ShortcutIcon{},
+		&monitor_model.ShortcutSectionItemUsage{},
 	); err != nil {
 		logger.Fatal("auto generate table failed, %s\n", err)
 	}
@@ -28,9 +32,9 @@ func Initial(_db *gorm.DB) {
 }
 
 func GetDB() *gorm.DB {
-	if db == nil {
+	if database == nil {
 		logger.Panic("db is nil\n")
 	}
 
-	return db
+	return database
 }

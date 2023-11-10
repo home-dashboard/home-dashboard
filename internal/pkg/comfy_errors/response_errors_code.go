@@ -6,4 +6,7 @@ const (
 	UnknownError ResponseErrorCode = iota
 	LoginRequestError
 	SessionStoreError
+	EntityNotFoundError
+	EntityAlreadyExistsError
+	EntityValidationError
 )
