@@ -1,6 +1,10 @@
 package verison_info
 
-import "time"
+import (
+	"golang.org/x/mod/semver"
+	"strings"
+	"time"
+)
 
 var (
 	Version = ""
@@ -8,7 +12,15 @@ var (
 	Date    = time.Now()
 )
 
+// SetVersion 设置版本号. 会自动添加 "v" 前缀.
 func SetVersion(version string) {
+	if !strings.HasPrefix(strings.ToLower(version), "v") {
+		v := strings.Join([]string{"v", version}, "")
+		if semver.IsValid(v) {
+			version = v
+		}
+	}
+
 	Version = version
 }
 

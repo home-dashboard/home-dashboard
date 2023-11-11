@@ -53,7 +53,7 @@ func init() {
 }
 
 func main() {
-	logger.Info("version %s, commit %s, built at %s\n", version, commit, date)
+	logger.Info("version %s, commit %s, built at %s\n", verison_info.Version, verison_info.Commit, verison_info.Date.Format(time.RFC3339))
 
 	// 设置数据库文件路径
 	database.SetSourceFilePath("home-dashboard.db")
@@ -133,7 +133,7 @@ func makeOverseerConfig() (overseer.Config, error) {
 
 		fetchers = append(fetchers, &fetcher.GitHubFetcher{
 			Token:          gitHubPST,
-			CurrentVersion: version,
+			CurrentVersion: verison_info.Version,
 			User:           githubFetcherConfig.Owner,
 			Repository:     githubFetcherConfig.Repository,
 			OnProgress: func(written, total uint64) {
