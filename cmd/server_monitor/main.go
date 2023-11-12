@@ -112,6 +112,7 @@ func main() {
 func makeOverseerConfig() (overseer.Config, error) {
 	config := configuration.Get()
 	overseerConfig := overseer.Config{
+		DebugMode: config.ServerMonitor.Development.Enable,
 		Addresses: []string{":" + strconv.FormatInt(int64(config.ServerMonitor.Port), 10)},
 	}
 

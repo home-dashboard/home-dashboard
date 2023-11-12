@@ -26,8 +26,9 @@ type ServerMonitorAdministratorConfiguration struct {
 }
 
 type ServerMonitorDevelopmentConfiguration struct {
-	// 是否为开发模式
-	// 默认为 false
+	// 是否为开发模式. 默认为 false
+	// 开发模式下:
+	// - overseer 将在同一进程中执行程序, 而不是子进程. 详见 [github.com/siaikin/home-dashboard/internal/pkg/overseer.Config.DebugMode]
 	Enable bool `json:"enable" toml:"enable"`
 	// 开发模式下的跨域配置
 	Cors struct {

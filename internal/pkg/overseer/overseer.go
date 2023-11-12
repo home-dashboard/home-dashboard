@@ -58,8 +58,11 @@ func Get() (*Overseer, error) {
 }
 
 type Config struct {
-	// Required 默认情况下 Program 在子进程中运行失败时, 会回退到在主进程中运行. Required 为 true 时, 会阻止其回退行为.
-	Required bool `json:"required"`
+	// DebugMode 当设置为 true 时, overseer 会直接执行 program 函数, 而不会启动子进程. 这应用于开发调试场景下.
+	//
+	// 通常在 manager 进程启动时, 会同时启动一个 worker 进程, 用于执行程序, 这也是 overseer 存在的意义.
+	// 但是在开发调试场景下, 难以 debug 子进程, 需要将在同一个进程中运行程序. Config.DebugMode 因此而存在.
+	DebugMode bool `json:"debugMode"`
 	// Port rpc 服务端口, rpc 服务用于内部进程间通讯.
 	Port uint `json:"port"`
 	// Addresses socket 监听地址列表. 详情见 [net/http.Server.Addr]
@@ -107,10 +110,15 @@ func (o *Overseer) Run(program ProgramFunc) (func(ctx context.Context), error) {
 
 	logger.Info("run with config: %+v", o.Config)
 
+	// 如果设置了 DebugMode 为 true, 则直接执行 program 函数, 而不会启动子进程.
+	if o.Config.DebugMode {
+		return o.runWithSameProcess(program)
+	}
+
 	if IsWorkerProcess && !IsManagerProcess {
 		return o.runWorker(program)
 	} else {
-		return o.runManager()
+		return o.runManager(true)
 	}
 }
 
@@ -165,15 +173,20 @@ func (o *Overseer) runWorker(program ProgramFunc) (func(ctx context.Context), er
 	}, nil
 }
 
-func (o *Overseer) runManager() (func(ctx context.Context), error) {
+// runManager 初始化 manager. 由 immediate 控制是否同时创建 worker 进程.
+//
+// immediate 等同于 !Config.DebugMode.
+func (o *Overseer) runManager(immediate bool) (func(ctx context.Context), error) {
 	stopRpcServer, err := o.initialRpcServer()
 	if err != nil {
 		return nil, err
 	}
 
 	o.manager = &manager{Config: o.Config}
-	if err := o.manager.Initial(context.Background()); err != nil {
-		return nil, err
+	if immediate {
+		if err := o.manager.Initial(context.Background()); err != nil {
+			return nil, err
+		}
 	}
 
 	return func(ctx context.Context) {
@@ -217,6 +230,34 @@ func (o *Overseer) initialRpcServer() (func(), error) {
 	return func() {
 		_ = listener.Close()
 	}, nil
+}
+
+// runWithSameProcess worker 和 manager 在同一个进程中运行
+func (o *Overseer) runWithSameProcess(program ProgramFunc) (func(ctx context.Context), error) {
+	if path, err := os.Executable(); err != nil {
+		return nil, err
+	} else if hash, err := utils.MD5File(path); err != nil {
+		return nil, err
+	} else if err := os.Setenv(envShortBinHash, hash[len(hash)-8:]); err != nil {
+		return nil, err
+	} else {
+		_ = os.Setenv(envIsWorkerProcess, "true")
+		_ = os.Setenv(envIsManagerProcess, "true")
+		IsWorkerProcess = true
+		IsManagerProcess = true
+	}
+
+	if managerDestroyFunc, err := o.runManager(false); err != nil {
+		return nil, err
+	} else if workerDestroyFunc, err := o.runWorker(program); err != nil {
+		return nil, err
+	} else {
+		return func(ctx context.Context) {
+			managerDestroyFunc(ctx)
+			workerDestroyFunc(ctx)
+		}, nil
+	}
+
 }
 
 func validateConfig(config *Config) error {
