@@ -184,10 +184,16 @@ func Loop(context context.Context, d time.Duration) {
 			select {
 			case <-context.Done():
 				ticker.Stop()
+				logger.Info("process realtime loop stopped\n")
 				return
 			case <-ticker.C:
+				logger.Info("process realtime collecting\n")
 				processStatList, relationship = getProcessRealtimeStatistic()
+				logger.Info("process realtime collected\n")
+
+				logger.Info("process realtime sending\n")
 				notification.Send(MessageType, map[string]any{MessageType: processStatList})
+				logger.Info("process realtime sent\n")
 			}
 		}
 	}()
