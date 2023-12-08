@@ -139,10 +139,16 @@ func Loop(context context.Context, d time.Duration) {
 			select {
 			case <-context.Done():
 				ticker.Stop()
+				logger.Info("system realtime stat loop stopped\n")
 				return
 			case <-ticker.C:
+				logger.Info("system realtime stat collecting\n")
 				currentSystemStat = getSystemRealtimeStatic()
+				logger.Info("system realtime stat collected\n")
+
+				logger.Info("system realtime stat sending\n")
 				notification.Send(MessageType, map[string]any{MessageType: currentSystemStat})
+				logger.Info("system realtime stat sent\n")
 			}
 		}
 	}()
