@@ -39,6 +39,10 @@ func Initial(db *gorm.DB) {
 	if err := generateDefaultShortcutSection(); err != nil {
 		panic(err)
 	}
+
+	if err := fetchUserAgent(); err != nil {
+		panic(err)
+	}
 }
 
 func Start(ctx context.Context, listener *net.Listener) {
@@ -167,6 +171,19 @@ func generateDefaultShortcutSection() error {
 	})
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// 启动时拉取 userAgent 列表, 并存储到数据库中
+func fetchUserAgent() error {
+	if count, err := monitor_service.CountUserAgent(monitor_model.UserAgent{}); err != nil {
+		return err
+	} else if count <= 0 {
+		if err := monitor_service.RefreshUserAgent(); err != nil {
+			return err
+		}
 	}
 
 	return nil

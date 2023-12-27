@@ -1,11 +1,19 @@
 package monitor_service
 
 import (
+	"compress/flate"
+	"compress/gzip"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/file_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
 	"gorm.io/gorm/clause"
+	"mime"
+	url2 "net/url"
+	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var shortcutItemModel = monitor_model.ShortcutItem{}
@@ -89,4 +97,91 @@ func listShortcutItemsWithPreload(query monitor_model.ShortcutItem, preload []st
 	result := model.Where(&query).Find(&items)
 
 	return &items, result.Error
+}
+
+func RefreshCachedShortcutItemImageIcon(items *[]monitor_model.ShortcutItem) error {
+	for _, item := range *items {
+		if cachedUrl := GetCachedShortcutItemImageIconUrl(item); len(cachedUrl) <= 0 {
+			continue
+		} else {
+			item.IconCachedUrl = cachedUrl
+		}
+
+		if _, err := CreateOrUpdateShortcutItems([]monitor_model.ShortcutItem{item}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// GetCachedShortcutItemImageIconUrl 获取快捷方式图标的缓存 url. 如果快捷方式图标不是 monitor_model.ShortcutItemIconTypeUrl 类型,
+// 或者快捷方式的 iconUrl 为空, 则返回空字符串.
+func GetCachedShortcutItemImageIconUrl(item monitor_model.ShortcutItem) string {
+	if item.IconType != monitor_model.ShortcutItemIconTypeUrl || item.IconUrl == "" {
+		logger.Error("item %s(%d) icon type is not url or icon url is empty", item.Title, item.ID)
+		return ""
+	}
+
+	if url, err := url2.Parse(item.IconUrl); err != nil {
+		return ""
+	} else if iconCachedUrl, err := cacheImageIconFromUrl(url); err != nil {
+		logger.Error("cache %s image icon from %s failed: %w", item.Title, item.IconUrl, err)
+		return ""
+	} else {
+		return iconCachedUrl
+	}
+}
+
+// cacheImageIconFromUrl 从 url 拉取图标, 并将图标缓存到文件系统中. 返回图标在文件系统中的相对路径.
+func cacheImageIconFromUrl(url *url2.URL) (string, error) {
+	req, err := httpClient.Get(url.String())
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept-Encoding", "gzip, deflate")
+	req.Header.Set("Host", url.Host)
+	ua, err := RandomUserAgent()
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", ua.UserAgent)
+	res, err := httpClient.Send(req)
+	if err != nil {
+		return "", err
+	}
+
+	decompressedReader := res.Body
+	switch res.Header.Get("Content-Encoding") {
+	case "gzip":
+		decompressedReader, err = gzip.NewReader(res.Body)
+		if err != nil {
+			return "", err
+		}
+	case "deflate":
+		decompressedReader = flate.NewReader(res.Body)
+	}
+
+	ext := ""
+	if extensions, err := mime.ExtensionsByType(res.Header.Get("Content-Type")); len(extensions) <= 0 || err != nil {
+		ext = filepath.Ext(filepath.FromSlash(url.Path))
+	} else {
+		ext = extensions[0]
+	}
+
+	fs, err := file_service.Get()
+	if err != nil {
+		return "", err
+	}
+
+	fileSystemPath := filepath.Join("shortcut", "icon", strconv.FormatInt(time.Now().UnixNano(), 10)+ext)
+	if err := fs.Save(fileSystemPath, decompressedReader); err != nil {
+		return "", err
+	}
+	iconCachedUrl, err := url2.JoinPath("", strings.Split(fileSystemPath, string(filepath.Separator))...)
+	if err != nil {
+		return "", err
+	}
+
+	return iconCachedUrl, nil
 }

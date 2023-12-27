@@ -6,6 +6,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	ginSessions "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/file_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_controller"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/notification"
@@ -169,6 +170,7 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 	authorizedAnd2faValidated.GET("shortcut/item/list", monitor_controller.ListShortcutItems)
 	authorizedAnd2faValidated.PUT("shortcut/item/update/:id", monitor_controller.UpdateShortcutItem)
 	authorizedAnd2faValidated.DELETE("shortcut/item/delete", monitor_controller.DeleteShortcutItem)
+	authorizedAnd2faValidated.PUT("shortcut/item/refresh-image-icon-cache/:sectionId", monitor_controller.RefreshCachedShortcutItemImageIcon)
 	// -> 书签图标接口
 	authorizedAnd2faValidated.PUT("shortcut/icon/refresh", monitor_controller.RefreshShortcutIcons)
 	// -> 收集书签使用情况
@@ -186,6 +188,11 @@ func startServer(listener *net.Listener, mock bool) error {
 	engine := setupEngine(mock)
 
 	setupRouter(engine.Group("/v1/web"), mock)
+
+	// 启用文件服务
+	if err := file_service.Serve(engine.Group("/v1/file")); err != nil {
+		logger.Fatal("file service start failed, %s.\n", err)
+	}
 
 	// 嵌入 home-dashboard-web-ui 静态资源
 	if err := web_submodules.EmbedHomeDashboardWebUI(engine); err != nil {

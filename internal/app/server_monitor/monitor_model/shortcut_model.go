@@ -30,6 +30,7 @@ type ShortcutItem struct {
 	Description     string                     `json:"description"`
 	URL             string                     `json:"url"`
 	IconType        ShortcutItemIconType       `json:"iconType"`
+	IconCachedUrl   string                     `json:"iconCachedUrl"`
 	IconUrl         string                     `json:"iconUrl"`
 	IconText        string                     `json:"iconText"`
 	IconID          uint                       `json:"IconId"`

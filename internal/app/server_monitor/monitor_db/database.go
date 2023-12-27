@@ -25,6 +25,7 @@ func Initial(db *gorm.DB) {
 		&monitor_model.ShortcutItem{},
 		&monitor_model.ShortcutIcon{},
 		&monitor_model.ShortcutSectionItemUsage{},
+		&monitor_model.UserAgent{},
 	); err != nil {
 		logger.Fatal("auto generate table failed, %s\n", err)
 	}

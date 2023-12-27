@@ -128,7 +128,7 @@ func extractWebsiteInfoFromUrl(url *url2.URL, header http.Header) (*monitor_mode
 		bestIconUrl = url.ResolveReference(iconUrl).String()
 	}
 
-	return &monitor_model.ShortcutItem{
+	item := monitor_model.ShortcutItem{
 		Title:           doc.Find("title").Text(),
 		Description:     doc.Find("meta[name*='description']").AttrOr("content", ""),
 		URL:             url.String(),
@@ -139,7 +139,10 @@ func extractWebsiteInfoFromUrl(url *url2.URL, header http.Header) (*monitor_mode
 		StatusCheck:     true,
 		StatusCheckUrl:  url.String(),
 		BackgroundColor: "",
-	}, nil
+	}
+	item.IconCachedUrl = monitor_service.GetCachedShortcutItemImageIconUrl(item)
+
+	return &item, nil
 }
 
 // CreateShortcutItem 创建 shortcut item.
@@ -168,6 +171,10 @@ func CreateShortcutItem(c *gin.Context) {
 	} else if count > 0 {
 		respondEntityAlreadyExistError(c, "shortcut item with title %s already exists", body.Title)
 		return
+	}
+
+	if len(body.IconCachedUrl) <= 0 {
+		body.IconCachedUrl = monitor_service.GetCachedShortcutItemImageIconUrl(body)
 	}
 
 	if created, err := monitor_service.CreateOrUpdateShortcutItems([]monitor_model.ShortcutItem{body}); err != nil {
@@ -220,7 +227,7 @@ func ListShortcutItems(c *gin.Context) {
 // @Param id path number true "id"
 // @Param shortcutItem body monitor_model.ShortcutItem true "body"
 // @Success 200
-// @Router shortcut/item//update/{id} [put]
+// @Router shortcut/item/update/{id} [put]
 func UpdateShortcutItem(c *gin.Context) {
 	var body monitor_model.ShortcutItem
 
@@ -264,6 +271,43 @@ func DeleteShortcutItem(c *gin.Context) {
 	if err := monitor_service.DeleteShortcutItems(ids); err != nil {
 		respondUnknownError(c, err.Error())
 		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+// RefreshCachedShortcutItemImageIcon 刷新缓存的 shortcut item 图标.
+// @Summary RefreshCachedShortcutItemImageIcon
+// @Description RefreshCachedShortcutItemImageIcon
+// @Tags RefreshCachedShortcutItemImageIcon
+// @Produce json
+// @Param id path number true "id"
+// @Success 200
+// @Router shortcut/item/refresh-cached-icon/{sectionId} [put]
+func RefreshCachedShortcutItemImageIcon(c *gin.Context) {
+	var sectionId uint
+
+	if ID, err := strconv.ParseUint(c.Param("sectionId"), 10, 0); err != nil {
+		respondEntityValidationError(c, "sectionId should be number")
+		return
+	} else {
+		sectionId = uint(ID)
+	}
+
+	sections, err := monitor_service.ListShortcutSectionsByQuery(0, monitor_model.ShortcutSection{Model: monitor_model.Model{ID: sectionId}}, []string{"Items"})
+	if err != nil {
+		respondUnknownError(c, err.Error())
+		return
+	} else if len(*sections) <= 0 {
+		respondEntityNotFoundError(c, "section %d not found", sectionId)
+		return
+	}
+
+	items := (*sections)[0].Items
+	if err := monitor_service.RefreshCachedShortcutItemImageIcon(&items); err != nil {
+		respondUnknownError(c, err.Error())
+		return
+
 	}
 
 	c.JSON(http.StatusOK, gin.H{})
