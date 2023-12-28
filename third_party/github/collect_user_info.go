@@ -55,6 +55,7 @@ func startFetchUserInfoLoop(context context.Context) {
 
 // collectUserInfo 收集用户统计信息.
 func collectUserInfo() error {
+	// from https://medium.com/@yuichkun/how-to-retrieve-contribution-graph-data-from-the-github-api-dc3a151b4af
 	type userInfoQuery struct {
 		Viewer struct {
 			Name      githubv4.String

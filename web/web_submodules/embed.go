@@ -15,8 +15,10 @@ var logger = comfy_log.New("[web_submodules]")
 //go:embed all:home-dashboard-web-ui/dist
 var homeDashboardWebUiAssets embed.FS
 
-// 对于 "/" golang 会自动重定向到 "/index.html". 如果使用 "/index.html" 将于 golang 默认行为冲突导致无限循环.
-// see https://github.com/gin-gonic/gin/issues/2654#issuecomment-815823804
+// 为什么不用 "/index.html" 作为 indexFilePath?
+// 首先, 已知对于 "/" golang 会自动重定向到 "/index.html"(见 https://github.com/gin-gonic/gin/issues/2654#issuecomment-815823804 ).
+// 当 indexFilePath 值为 "/index.html" 时, 如果找不到文件程序会在路径尾部增加 indexFilePath. 而 golang 内部会重定向到没有 "index.html" 后缀的相同路径.
+// 这又会导致再次找不到文件, 从而陷入死循环.
 var indexFilePath = "/"
 
 func EmbedHomeDashboardWebUI(engine *gin.Engine) error {
