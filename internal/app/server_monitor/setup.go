@@ -6,6 +6,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	ginSessions "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/siaikin/home-dashboard/internal/app/server_monitor/file_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_controller"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/notification"
@@ -156,6 +157,25 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 	// 获取版本信息
 	authorizedAnd2faValidated.GET("version", monitor_controller.Version)
 
+	// 书签相关接口
+	// -> 书签文件夹接口
+	authorizedAnd2faValidated.POST("shortcut/section/create", monitor_controller.CreateShortcutSection)
+	authorizedAnd2faValidated.GET("shortcut/section/list", monitor_controller.ListShortcutSections)
+	authorizedAnd2faValidated.PUT("shortcut/section/update/:id", monitor_controller.UpdateShortcutSection)
+	authorizedAnd2faValidated.DELETE("shortcut/section/delete/:id", monitor_controller.DeleteShortcutSection)
+	authorizedAnd2faValidated.DELETE("shortcut/section/delete/:id/items", monitor_controller.DeleteShortcutSectionItems)
+	// -> 书签接口
+	authorizedAnd2faValidated.GET("shortcut/item/extract-from-url", monitor_controller.ExtractShortcutItemInfoFromURL)
+	authorizedAnd2faValidated.POST("shortcut/item/create", monitor_controller.CreateShortcutItem)
+	authorizedAnd2faValidated.GET("shortcut/item/list", monitor_controller.ListShortcutItems)
+	authorizedAnd2faValidated.PUT("shortcut/item/update/:id", monitor_controller.UpdateShortcutItem)
+	authorizedAnd2faValidated.DELETE("shortcut/item/delete", monitor_controller.DeleteShortcutItem)
+	authorizedAnd2faValidated.PUT("shortcut/item/refresh-image-icon-cache/:sectionId", monitor_controller.RefreshCachedShortcutItemImageIcon)
+	// -> 书签图标接口
+	authorizedAnd2faValidated.PUT("shortcut/icon/refresh", monitor_controller.RefreshShortcutIcons)
+	// -> 收集书签使用情况
+	authorizedAnd2faValidated.POST("shortcut/usage/collect", monitor_controller.CollectShortcutSectionItemUsages)
+
 	// 启用第三方服务
 	if err := third_party.Load(authorizedAnd2faValidated); err != nil {
 		logger.Fatal("third party service start failed, %s.\n", err)
@@ -168,6 +188,11 @@ func startServer(listener *net.Listener, mock bool) error {
 	engine := setupEngine(mock)
 
 	setupRouter(engine.Group("/v1/web"), mock)
+
+	// 启用文件服务
+	if err := file_service.Serve(engine.Group("/v1/file")); err != nil {
+		logger.Fatal("file service start failed, %s.\n", err)
+	}
 
 	// 嵌入 home-dashboard-web-ui 静态资源
 	if err := web_submodules.EmbedHomeDashboardWebUI(engine); err != nil {

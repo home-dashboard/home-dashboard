@@ -35,6 +35,14 @@ func Initial(db *gorm.DB) {
 	if err := storeLatestConfiguration(); err != nil {
 		panic(err)
 	}
+
+	if err := generateDefaultShortcutSection(); err != nil {
+		panic(err)
+	}
+
+	if err := fetchUserAgent(); err != nil {
+		panic(err)
+	}
 }
 
 func Start(ctx context.Context, listener *net.Listener) {
@@ -142,6 +150,40 @@ func storeLatestConfiguration() error {
 
 	if err := monitor_service.CreateConfiguration(monitor_model.StoredConfiguration{Configuration: *configuration.Get()}); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// 创建默认的 monitor_model.ShortcutSection 数据
+func generateDefaultShortcutSection() error {
+	count, err := monitor_service.CountShortcutSection(monitor_model.ShortcutSection{})
+	if err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return nil
+	}
+
+	_, err = monitor_service.CreateOrUpdateShortcutSections([]monitor_model.ShortcutSection{
+		{Name: "Default Folder", Default: true},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// 启动时拉取 userAgent 列表, 并存储到数据库中
+func fetchUserAgent() error {
+	if count, err := monitor_service.CountUserAgent(monitor_model.UserAgent{}); err != nil {
+		return err
+	} else if count <= 0 {
+		if err := monitor_service.RefreshUserAgent(); err != nil {
+			return err
+		}
 	}
 
 	return nil

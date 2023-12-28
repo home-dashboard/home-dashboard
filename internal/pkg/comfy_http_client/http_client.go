@@ -120,7 +120,9 @@ func (c *Client) joinIfRelativePath(path string) (string, error) {
 		return path, err
 	}
 
-	if path[0] == 47 { // 绝对路径
+	if len(path) <= 0 {
+		baseUrl.Path = ""
+	} else if path[0] == 47 { // 绝对路径
 		baseUrl.Path = path
 	} else {
 		baseUrl = baseUrl.JoinPath(path)
