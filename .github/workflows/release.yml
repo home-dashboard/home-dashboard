@@ -32,20 +32,18 @@ jobs:
         cache: true
 
     # setup web environment
-    - name: Setup PNPM Environment
-      uses: pnpm/action-setup@v2.2.4
-      with:
-        version: 7
     - name: Setup Node.js Environment
-      uses: actions/setup-node@v3.6.0
-#      with:
-#        cache: 'pnpm'
+      uses: actions/setup-node@v3
+      with:
+        node-version-file: web/web_submodules/home-dashboard-web-ui/package.json
+    - name: Setup PNPM Environment
+      uses: pnpm/action-setup@v2
+      with:
+        run_install: true
+        package_json_file: web/web_submodules/home-dashboard-web-ui/package.json
     - name: Build Web UI
       working-directory: web/web_submodules/home-dashboard-web-ui
-      run: |
-        # 显式设置安装时不更新 lockfile
-        pnpm install --frozen-lockfile
-        pnpm run build
+      run: pnpm run build
 
     # More assembly might be required: Docker logins, GPG, etc. It all depends
     # on your needs.
