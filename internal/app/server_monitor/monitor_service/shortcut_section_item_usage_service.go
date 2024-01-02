@@ -25,7 +25,10 @@ func CreateOrUpdateShortcutSectionItemUsages(usages []monitor_model.ShortcutSect
 			return nil, result.Error
 		}
 		// 把 monitor_model.ShortcutSectionItemUsage 关联到 monitor_model.ShortcutItem 的 Usages 中.
-		if err := db.Model(&shortcutSectionItemUsageModel).Where(monitor_model.Model{ID: usage.ItemId}).Association("Usages").Append(&usage); err != nil {
+		// 添加关联时需要严格遵循语法
+		//  db.Model(&xxx).Association("xxx").Append(...)
+		// https://gorm.io/zh_CN/docs/associations.html#%E6%B7%BB%E5%8A%A0%E5%85%B3%E8%81%94
+		if err := db.Model(&monitor_model.ShortcutItem{Model: monitor_model.Model{ID: usage.ItemId}}).Association("Usages").Append(&usage); err != nil {
 			return nil, err
 		}
 	}
