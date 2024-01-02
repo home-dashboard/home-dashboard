@@ -35,14 +35,12 @@ jobs:
     - name: Setup Node.js Environment
       uses: actions/setup-node@v3
       with:
-        node-version: 18
-      #      with:
-      #        cache: 'pnpm'
+        node-version-file: web/web_submodules/home-dashboard-web-ui/package.json
     - name: Setup PNPM Environment
       uses: pnpm/action-setup@v2
       with:
-        version: 8
         run_install: true
+        package_json_file: web/web_submodules/home-dashboard-web-ui/package.json
     - name: Build Web UI
       working-directory: web/web_submodules/home-dashboard-web-ui
       run: pnpm run build
