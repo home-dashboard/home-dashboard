@@ -363,6 +363,9 @@ func (m *manager) upgrade(ctx context.Context, fetcherName string) error {
 	// 成功启动新的子进程后, 执行回调函数
 	callback()
 
+	// 成功升级后, 重置状态
+	m.LatestAssetInfo = nil
+
 	return nil
 }
 
