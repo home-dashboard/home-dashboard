@@ -3,6 +3,7 @@ package fetcher
 import (
 	"fmt"
 	"github.com/google/go-github/v50/github"
+	"github.com/samber/lo"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
 	"golang.org/x/mod/semver"
@@ -81,6 +82,7 @@ type GitHubFetcher struct {
 	CurrentVersion string `json:"currentVersion"`
 	// GitHub 用户名和仓库名
 	User, Repository string
+	GHProxy          bool
 	// SelectAsset 用于查找匹配的发布资产. 默认情况下, 如果它包含 GOOS 和 GOARCH, 则文件将匹配.
 	SelectAsset func(filename string) bool `json:"selectAsset"`
 	// SelectBinary 用于选择要使用的二进制文件. 默认情况下, 它将选择第一个找到的与当前操作系统和架构匹配的文件.
@@ -241,16 +243,13 @@ func (h *GitHubFetcher) downloadAndExtractArchive(matchedAsset *github.ReleaseAs
 		_ = os.Remove(tempFile.Name())
 	}()
 
-	_, assetUrl, err := httpClient.Repositories.DownloadReleaseAsset(context.Background(), h.User, h.Repository, matchedAsset.GetID(), nil)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("GET", assetUrl, nil)
+	downloadUrl := strings.Join([]string{lo.Ternary(h.GHProxy, "https://mirror.ghproxy.com/", ""), matchedAsset.GetBrowserDownloadURL()}, "")
+	req, err := http.NewRequest("GET", downloadUrl, nil)
 	if err != nil {
 		return err
 	}
 	req = req.WithContext(context.Background())
+	req.Header.Set("Accept", "application/octet-stream")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

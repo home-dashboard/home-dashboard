@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	version = "dev"
+	version = "v1.0.0"
 	commit  = "none"
 	date    = "unknown"
 )
@@ -137,6 +137,7 @@ func makeOverseerConfig() (overseer.Config, error) {
 			CurrentVersion: verison_info.Version,
 			User:           githubFetcherConfig.Owner,
 			Repository:     githubFetcherConfig.Repository,
+			GHProxy:        githubFetcherConfig.GHProxy,
 			OnProgress: func(written, total uint64) {
 				logger.Info("overseer: downloading %f%% (%s/%s)\n", float64(written)/float64(total)*100, humanize.Bytes(written), humanize.Bytes(total))
 			},

@@ -30,3 +30,4 @@ fetchTimeout = 600
 owner = "home-dashboard"
 repository = "home-dashboard"
 personalAccessToken = ""
+ghproxy = false

@@ -99,6 +99,8 @@ type ServerMonitorUpdateFetcherGitHubConfiguration struct {
 	Owner string `json:"owner" toml:"owner"`
 	// GitHub 仓库的名称
 	Repository string `json:"repository" toml:"repository"`
+	// 大陆特供: 使用 https://ghproxy.com 加速二进制文件下载速度
+	GHProxy bool `json:"ghproxy" toml:"ghproxy"`
 }
 
 type Configuration struct {
