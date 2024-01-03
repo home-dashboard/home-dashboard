@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	DefaultConfigFilename = ".config.toml"
+	DefaultConfigFilename = "config.toml"
 )
 
 var fileConfig *Configuration
