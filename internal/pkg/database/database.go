@@ -2,9 +2,12 @@ package database
 
 import (
 	"github.com/glebarez/sqlite"
+	"github.com/samber/lo"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
+	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 	"path"
 )
 
@@ -14,7 +17,10 @@ var db *gorm.DB
 var dsn = "file::memory:?cache=shared"
 
 func connectDataBase() error {
-	_db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	isDev := configuration.Get().ServerMonitor.Development.Enable
+	_db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
+		Logger: gormlogger.Default.LogMode(lo.Ternary(isDev, gormlogger.Info, gormlogger.Warn)),
+	})
 	if err != nil {
 		logger.Panic("data base open failed, %s\n", err)
 		return err
