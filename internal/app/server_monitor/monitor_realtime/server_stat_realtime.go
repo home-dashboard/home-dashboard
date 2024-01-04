@@ -93,7 +93,7 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 		systemStat.Disk = append(systemStat.Disk, &diskStat)
 		diskIndexMap[item.Device] = len(systemStat.Disk) - 1
 
-		usage, _ := psuDisk.Usage(item.Device)
+		usage, _ := psuDisk.Usage(item.Mountpoint)
 		diskStat.UsageStat = usage
 	}
 
@@ -108,9 +108,8 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 
 	cpuInfos, _ := psuCpu.Info()
 
-	for _, item := range cpuInfos {
-		cpuStat.InfoStat = item
-	}
+	// todo 返回所有 cpu 信息
+	cpuStat.InfoStat = cpuInfos[0]
 
 	cpuStat.LogicalCounts, _ = psuCpu.Counts(true)
 	cpuStat.PhysicalCounts, _ = psuCpu.Counts(false)
