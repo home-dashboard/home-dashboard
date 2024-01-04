@@ -24,7 +24,7 @@ func CreateOrUpdateShortcutSections(sections []monitor_model.ShortcutSection) ([
 			}
 		}
 
-		if result := db.Save(&section); result != nil {
+		if result := db.Save(&section); result.Error != nil {
 			return nil, result.Error
 		}
 		affected[i] = section
