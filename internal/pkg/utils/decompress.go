@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 )
 
 var (
@@ -35,7 +37,7 @@ func DecompressFile(source string, destinationDir string) error {
 
 	for {
 		// 根据文件扩展名执行不同的解压操作
-		fileOrDirPath, err := extractByExt(extractFileName, destinationDir)
+		fileOrDirPath, err := extractByExt(extractFileName, destinationDir, false)
 		if err != nil {
 			if errors.Is(err, ErrNotArchive) {
 				break
@@ -49,9 +51,56 @@ func DecompressFile(source string, destinationDir string) error {
 	return nil
 }
 
+// DecompressFileToDir 解压文件到目标目录. 与 DecompressFile 不同的是, DecompressFileToDir 直接将文件解压到目标目录, 而不是在目标目录下创建一个与源文件同名的目录.
+func DecompressFileToDir(source string, destinationDir string) error {
+	// 校验参数并准备解压
+	if err := validateAndPrepareDecompressArgs(source, destinationDir); err != nil {
+		return err
+	}
+
+	// 打开源文件
+	file, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	extractFileName := source
+
+	tempGzFile := ""
+	for {
+		// 根据文件扩展名执行不同的解压操作
+		fileOrDirPath, err := extractByExt(extractFileName, destinationDir, true)
+		if err != nil {
+			if errors.Is(err, ErrNotArchive) {
+				break
+			} else {
+				return err
+			}
+		}
+		// 如果是 tar.gz 文件, 则将解压后的 tar 文件路径保存到 tempGzFile 变量中, 并在解压完成后删除
+		if strings.HasSuffix(extractFileName, ".tar.gz") {
+			tempGzFile = fileOrDirPath
+		}
+
+		extractFileName = fileOrDirPath
+	}
+
+	// 删除 tar 文件
+	if len(tempGzFile) > 0 {
+		if err := os.Remove(tempGzFile); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // extractByExt 根据文件扩展名执行不同的解压操作.
 // 返回值: 解压后的文件或目录路径, 错误信息
-func extractByExt(source string, destinationDir string) (string, error) {
+func extractByExt(source string, destinationDir string, noRootDir bool) (string, error) {
 	// 获取文件扩展名
 	ext := filepath.Ext(source)
 	// 设置解压后的文件名
@@ -68,11 +117,11 @@ func extractByExt(source string, destinationDir string) (string, error) {
 			dest = _dest
 		}
 	case ".tar": // 解压 tar 文件
-		if err := extractTar(source, destinationDir); err != nil {
+		if err := extractTar(source, destinationDir, noRootDir); err != nil {
 			return "", err
 		}
 	case ".zip": // 解压zip文件
-		if err := extractZip(source, destinationDir); err != nil {
+		if err := extractZip(source, destinationDir, noRootDir); err != nil {
 			return "", err
 		}
 	default:
@@ -123,7 +172,7 @@ func extractGz(source string, destination string) (string, error) {
 	return destination, nil
 }
 
-func extractTar(source string, destinationDir string) error {
+func extractTar(source string, destinationDir string, noRootDir bool) error {
 	// 打开源文件
 	file, err := os.Open(source)
 	if err != nil {
@@ -135,6 +184,8 @@ func extractTar(source string, destinationDir string) error {
 
 	// 创建一个新的tar reader
 	trr := tar.NewReader(file)
+
+	rootDirName := ""
 
 	// 从归档中提取每个文件
 	for {
@@ -149,17 +200,24 @@ func extractTar(source string, destinationDir string) error {
 			return err
 		}
 
+		if len(rootDirName) <= 0 {
+			rootDirName = strings.Split(path.Clean(hdr.Name), string(os.PathSeparator))[0]
+		}
+		if noRootDir {
+			hdr.Name = strings.TrimPrefix(hdr.Name, rootDirName)
+		}
+
 		// 创建目标文件路径
-		path := filepath.Join(destinationDir, hdr.Name)
+		tarPath := filepath.Join(destinationDir, hdr.Name)
 
 		// 如果文件是目录，则创建它
 		if hdr.FileInfo().IsDir() {
-			if err := os.MkdirAll(path, hdr.FileInfo().Mode()); err != nil {
+			if err := os.MkdirAll(tarPath, hdr.FileInfo().Mode()); err != nil {
 				return err
 			}
 		} else {
 			// 提取文件
-			if err := extractTarPart(trr, hdr, path); err != nil {
+			if err := extractTarPart(trr, hdr, tarPath); err != nil {
 				return err
 			}
 		}
@@ -193,7 +251,7 @@ func extractTarPart(trr *tar.Reader, hdr *tar.Header, destinationDir string) err
 	return nil
 }
 
-func extractZip(source string, destinationDir string) error {
+func extractZip(source string, destinationDir string, noRootDir bool) error {
 	// 打开zip文件
 	r, err := zip.OpenReader(source)
 	if err != nil {
@@ -203,8 +261,14 @@ func extractZip(source string, destinationDir string) error {
 		_ = r.Close()
 	}()
 
+	rootDirName := strings.Split(path.Clean(r.File[0].Name), string(os.PathSeparator))[0]
+
 	// 遍历zip文件中的所有文件
 	for _, file := range r.File {
+		if noRootDir {
+			file.Name = strings.TrimPrefix(file.Name, rootDirName)
+		}
+
 		if err := extractZipPart(file, destinationDir); err != nil {
 			return err
 		}

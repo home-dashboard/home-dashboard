@@ -6,6 +6,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	ginSessions "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/file_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_controller"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
@@ -28,7 +29,7 @@ func setupEngine(mock bool) *gin.Engine {
 		return nil
 	}
 
-	r.Use(gzip.Gzip(gzip.DefaultCompression))
+	r.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPathsRegexs([]string{".*_proxy$"})))
 	r.Use(sessions.GetSessionMiddleware())
 
 	r.Use(func(c *gin.Context) {
@@ -180,6 +181,12 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 	if err := third_party.Load(authorizedAnd2faValidated); err != nil {
 		logger.Fatal("third party service start failed, %s.\n", err)
 	}
+
+	// 启用 cron 服务
+	if err := cron_service.Load(authorizedAnd2faValidated.Group("cron")); err != nil {
+		logger.Fatal("cron service start failed, %s.\n", err)
+	}
+
 }
 
 var server *http.Server
