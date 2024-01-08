@@ -2,6 +2,9 @@ package cron_service
 
 import (
 	"context"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service/git"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -10,8 +13,6 @@ import (
 	"github.com/gliderlabs/ssh"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/controller"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
-	"github.com/siaikin/home-dashboard/internal/pkg/utils"
-	ssh2 "golang.org/x/crypto/ssh"
 )
 
 type CornServiceContext struct {
@@ -45,9 +46,9 @@ func loadRouter(router *gin.RouterGroup) error {
 	router.DELETE("/project/delete", controller.DeleteProject)
 
 	// git 相关接口
-	router.GET("/:name/info/refs", controller.InfoRefs)
-	router.POST("/:name/git-upload-pack", controller.UploadPack)
-	router.POST("/:name/git-receive-pack", controller.ReceivePack)
+	router.GET("/:name/info/refs", git.HTTPInfoRefs)
+	router.POST("/:name/git-upload-pack", git.HTTPUploadPack)
+	router.POST("/:name/git-receive-pack", git.HTTPReceivePack)
 
 	return nil
 }
@@ -58,26 +59,40 @@ func loadModel() error {
 
 func ServeSSH(listener *net.Listener) error {
 	server := ssh.Server{
-		//PublicKeyHandler: func(ctx ssh.Context, key ssh.PublicKey) bool {
-		//	ssh2.MarshalAuthorizedKey()
-		//	ssh.ParseAuthorizedKey()
-		//	ssh2.MarshalAuthorizedKey()
+		//ChannelHandlers: map[string]ssh.ChannelHandler{
+		//	"session": func(srv *ssh.Server, conn *ssh2.ServerConn, newChan ssh2.NewChannel, ctx ssh.Context) {
+		//		ch, req, err := newChan.Accept()
+		//		if err != nil {
+		//			return
+		//		}
+		//		handleSSHSession(constants.RepositoriesPath, ch, req)
+		//	},
 		//},
-		ChannelHandlers: map[string]ssh.ChannelHandler{
-			"session": func(srv *ssh.Server, conn *ssh2.ServerConn, newChan ssh2.NewChannel, ctx ssh.Context) {
-				// TODO 设置静态的仓库目录路径 repoDir
-				// TODO 根据 OpenSSH 规范 从 authorized_keys 中读取用户的公钥  authorized_keys 文件相对于 repoDir 保存
-				// TODO 增加 public key 的管理接口
-				// TODO bare repo 的创建时 初始化一些文件 如 README.md .gitignore package.json 等 还有 database.json 表示数据库的配置
-				// TODO database.json 中的配置信息
-				// TODO 使用 json schema 定义 database.json 的格式。json schema 从 go struct 中生成 使用
-				repoDir := filepath.Join(utils.WorkspaceDir(), "cron_service", "repos")
-				ch, req, err := newChan.Accept()
-				if err != nil {
-					return
+		Handler: func(session ssh.Session) {
+			//gitProtolVersion, ok := lo.Find(session.Environ(), func(item string) bool {
+			//	item ==
+			//})
+
+			commandArgs := session.Command()
+			serviceType := commandArgs[0]
+			repoName := commandArgs[1]
+
+			log.Printf("dir: %s", filepath.Join(constants.RepositoriesPath, repoName))
+
+			switch serviceType {
+			case "git-upload-pack":
+				if err := git.SSHUploadPack(session.Context(), repoName, session, session); err != nil {
+					_ = session.Exit(1)
 				}
-				handleSSHSession(repoDir, ch, req)
-			},
+				return
+			case "git-receive-pack":
+				if err := git.SSHReceivePack(session.Context(), repoName, session, session); err != nil {
+					_ = session.Exit(1)
+				}
+				return
+			default:
+				log.Printf("unhandled cmd: %s", serviceType)
+			}
 		},
 	}
 

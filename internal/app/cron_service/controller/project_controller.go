@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/siaikin/home-dashboard/internal/pkg/utils"
-
 	"github.com/gin-gonic/gin"
+	"github.com/go-git/go-git/v5"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/service"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
@@ -128,7 +127,7 @@ func DeleteProject(c *gin.Context) {
 }
 
 func initialRepository(project model.Project) error {
-	repoDir := filepath.Join(utils.WorkspaceDir(), "cron_service", "repos", project.Name)
+	repoDir := filepath.Join(constants.RepositoriesPath, project.Name)
 
 	repo, err := git.PlainInit(repoDir, true)
 	if err != nil {
