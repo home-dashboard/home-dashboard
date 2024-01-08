@@ -3,7 +3,6 @@ package controller
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
-	"github.com/siaikin/home-dashboard/internal/pkg/comfy_http_client"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/nodejs"
 	"golang.org/x/mod/semver"
@@ -12,15 +11,10 @@ import (
 	"net/url"
 	"path/filepath"
 	"runtime"
-	"time"
+	"strings"
 )
 
 var logger = comfy_log.New("[cron_service nodejs]")
-var httpClient *comfy_http_client.Client
-
-func init() {
-	httpClient, _ = comfy_http_client.New("", http.Header{}, time.Minute)
-}
 
 // ListNodejsVersion 列出所有 Node.js 版本.
 // @Summary ListNodejsVersion
@@ -57,9 +51,9 @@ func ListNodejsVersion(c *gin.Context) {
 // @Success 200 {object} string
 // @Router nodejs/install [get]
 func InstallNodejs(c *gin.Context) {
-	version := c.Param("version")
+	version := strings.ToLower(c.Param("version"))
 
-	if semver.IsValid(version) {
+	if !semver.IsValid(version) {
 		comfy_errors.ControllerUtils.RespondEntityValidationError(c, "invalid version")
 		return
 	}
@@ -72,9 +66,42 @@ func InstallNodejs(c *gin.Context) {
 		},
 	}
 
+	// 如果已经安装了，先卸载
+	if installer.IsInstalled() {
+		if err := installer.Uninstall(); err != nil {
+			comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
+			return
+		}
+	}
+
 	if err := installer.Install(version, runtime.GOOS, runtime.GOARCH); err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
 	}
+}
 
+// InstalledNodejsInfo 列出已安装的 Node.js 信息
+// @Summary ListInstalledNodejs
+// @Description ListInstalledNodejs
+// @Tags ListInstalledNodejs
+// @Produce json
+// @Success 200 {object} string
+// @Router nodejs/installed [get]
+func InstalledNodejsInfo(c *gin.Context) {
+	installer := nodejs.Installer{
+		MirrorURL:     "https://nodejs.org",
+		WorkDirectory: filepath.FromSlash("cron_service/nodejs"),
+		OnProgress: func(written, total uint64) {
+			logger.Info("download progress: %d/%d\n", written, total)
+		},
+	}
+
+	if !installer.IsInstalled() {
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	info := installer.Info()
+
+	c.JSON(http.StatusOK, info)
 }

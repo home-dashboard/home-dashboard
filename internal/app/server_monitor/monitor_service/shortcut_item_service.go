@@ -42,7 +42,6 @@ func CreateOrUpdateShortcutItems(items []monitor_model.ShortcutItem) ([]monitor_
 }
 
 // DeleteShortcutItems 删除 monitor_model.ShortcutItem.
-// 如果快捷方式已被 monitor_model.ShortcutSection 引用, 则也会删除 monitor_model.ShortcutItem 与 monitor_model.ShortcutSection 的关联关系.
 func DeleteShortcutItems(ids []uint) error {
 	db := monitor_db.GetDB()
 
@@ -50,7 +49,10 @@ func DeleteShortcutItems(ids []uint) error {
 	for i, id := range ids {
 		items[i] = monitor_model.ShortcutItem{Model: monitor_model.Model{ID: id}}
 	}
-	if result := db.Select("Sections").Delete(&items); result.Error != nil {
+	if result := db.
+		// 如果快捷方式已被 monitor_model.ShortcutSection 引用, 则也会删除 monitor_model.ShortcutItem 与 monitor_model.ShortcutSection 的关联关系.
+		Select("Sections").
+		Delete(&items); result.Error != nil {
 		return result.Error
 	}
 

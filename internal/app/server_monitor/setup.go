@@ -183,7 +183,7 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 	}
 
 	// 启用 cron 服务
-	if err := cron_service.Load(authorizedAnd2faValidated.Group("cron")); err != nil {
+	if err := cron_service.MountHTTPRouter(authorizedAnd2faValidated.Group("cron")); err != nil {
 		logger.Fatal("cron service start failed, %s.\n", err)
 	}
 

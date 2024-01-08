@@ -3,11 +3,15 @@ package nodejs
 import (
 	"context"
 	"fmt"
-	"github.com/siaikin/home-dashboard/internal/pkg/utils"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+
+	"github.com/siaikin/home-dashboard/internal/pkg/utils"
+	"golang.org/x/mod/semver"
 )
 
 type Platform string
@@ -65,7 +69,7 @@ func (r *Installer) ResolvePath(version string, platform string, cpu string) (st
 		return "", fmt.Errorf("unsupported Arch %s", cpu)
 	}
 
-	return fmt.Sprintf("node-v%s-%s-%s.%s", version, os, arch, extension), nil
+	return fmt.Sprintf("node-%s-%s-%s.%s", version, os, arch, extension), nil
 }
 
 func (r *Installer) Install(version string, platform string, cpu string) error {
@@ -109,4 +113,55 @@ func (r *Installer) Install(version string, platform string, cpu string) error {
 	}
 
 	return nil
+}
+
+func (r *Installer) Uninstall() error {
+	return os.RemoveAll(filepath.Join(utils.WorkspaceDir(), r.WorkDirectory))
+}
+
+func (r *Installer) IsInstalled() bool {
+	return semver.IsValid(r.Version())
+}
+
+type Info struct {
+	Version    string `json:"version,omitempty"`
+	Arch       string `json:"arch,omitempty"`
+	OS         string `json:"os,omitempty"`
+	Executable string `json:"executable,omitempty"`
+}
+
+// Info 返回当前系统的 Node.js 信息.
+func (r *Installer) Info() Info {
+	info := Info{
+		Version:    r.Version(),
+		Arch:       runtime.GOARCH,
+		OS:         runtime.GOOS,
+		Executable: r.Executable(),
+	}
+
+	return info
+}
+
+func (r *Installer) Executable() string {
+	dir := filepath.Join("D:\\projects\\go_projects\\home-dashboard\\bin", r.WorkDirectory)
+	switch runtime.GOOS {
+	case string(WINDOWS):
+		return filepath.Join(dir, "node.exe")
+	case string(LINUX):
+		return filepath.Join(dir, "bin", "node")
+	case string(OSX):
+		return filepath.Join(dir, "bin", "node")
+	default:
+		return ""
+	}
+}
+
+func (r *Installer) Version() string {
+	cmd := exec.Command(r.Executable(), "-v")
+
+	if bytes, err := cmd.Output(); err != nil {
+		return err.Error()
+	} else {
+		return strings.TrimSpace(string(bytes))
+	}
 }

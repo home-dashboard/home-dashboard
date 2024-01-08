@@ -6,6 +6,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
@@ -82,6 +83,9 @@ func main() {
 		}
 
 		server_monitor.Start(context.Background(), &listeners[0])
+		if err := cron_service.ServeSSH(&listeners[1]); err != nil {
+			logger.Fatal("mount ssh failed %s", err.Error())
+		}
 
 		return nil
 	})
@@ -113,7 +117,7 @@ func makeOverseerConfig() (overseer.Config, error) {
 	config := configuration.Get()
 	overseerConfig := overseer.Config{
 		DebugMode: config.ServerMonitor.Development.Enable,
-		Addresses: []string{":" + strconv.FormatInt(int64(config.ServerMonitor.Port), 10)},
+		Addresses: []string{":" + strconv.FormatInt(int64(config.ServerMonitor.Port), 10), ":8082"},
 	}
 
 	updateConfig := config.ServerMonitor.Update

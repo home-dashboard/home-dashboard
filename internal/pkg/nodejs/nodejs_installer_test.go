@@ -1,8 +1,11 @@
 package nodejs
 
-import "testing"
+import (
+	"golang.org/x/mod/semver"
+	"testing"
+)
 
-func TestInstallerPathResolver_ResolvePath(t *testing.T) {
+func TestInstaller_ResolvePath(t *testing.T) {
 	type args struct {
 		version  string
 		platform string
@@ -10,14 +13,14 @@ func TestInstallerPathResolver_ResolvePath(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		r       *InstallerPathResolver
+		r       *Installer
 		args    args
 		want    string
 		wantErr bool
 	}{
 		{
 			name: "windows",
-			r:    &InstallerPathResolver{},
+			r:    &Installer{},
 			args: args{
 				version:  "12.18.3",
 				platform: "windows",
@@ -28,7 +31,7 @@ func TestInstallerPathResolver_ResolvePath(t *testing.T) {
 		},
 		{
 			name: "linux",
-			r:    &InstallerPathResolver{},
+			r:    &Installer{},
 			args: args{
 				version:  "12.18.3",
 				platform: "linux",
@@ -39,7 +42,7 @@ func TestInstallerPathResolver_ResolvePath(t *testing.T) {
 		},
 		{
 			name: "darwin",
-			r:    &InstallerPathResolver{},
+			r:    &Installer{},
 			args: args{
 				version:  "12.18.3",
 				platform: "darwin",
@@ -50,7 +53,7 @@ func TestInstallerPathResolver_ResolvePath(t *testing.T) {
 		},
 		{
 			name: "unsupported platform",
-			r:    &InstallerPathResolver{},
+			r:    &Installer{},
 			args: args{
 				version:  "12.18.3",
 				platform: "unsupported",
@@ -61,7 +64,7 @@ func TestInstallerPathResolver_ResolvePath(t *testing.T) {
 		},
 		{
 			name: "unsupported cpu",
-			r:    &InstallerPathResolver{},
+			r:    &Installer{},
 			args: args{
 				version:  "12.18.3",
 				platform: "linux",
@@ -72,7 +75,7 @@ func TestInstallerPathResolver_ResolvePath(t *testing.T) {
 		},
 		{
 			name: "unsupported cpu",
-			r:    &InstallerPathResolver{},
+			r:    &Installer{},
 			args: args{
 				version:  "12.18.3",
 				platform: "linux",
@@ -83,7 +86,7 @@ func TestInstallerPathResolver_ResolvePath(t *testing.T) {
 		},
 		{
 			name: "unsupported cpu",
-			r:    &InstallerPathResolver{},
+			r:    &Installer{},
 			args: args{
 				version: "12.18.3",
 			},
@@ -92,7 +95,7 @@ func TestInstallerPathResolver_ResolvePath(t *testing.T) {
 		},
 		{
 			name: "unsupported cpu",
-			r:    &InstallerPathResolver{},
+			r:    &Installer{},
 			args: args{
 				version: "12.18.3",
 			},
@@ -102,19 +105,30 @@ func TestInstallerPathResolver_ResolvePath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &InstallerPathResolver{}
+			r := &Installer{}
 			got, err := r.ResolvePath(tt.args.version, tt.args.platform, tt.args.cpu)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("InstallerPathResolver.ResolvePath() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Installer.ResolvePath() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
 				t.Errorf(
-					"InstallerPathResolver.ResolvePath() = %v, want %v",
+					"Installer.ResolvePath() = %v, want %v",
 					got,
 					tt.want,
 				)
 			}
 		})
+	}
+}
+
+func TestInstaller_Version(t *testing.T) {
+	r := &Installer{
+		MirrorURL:     "https://nodejs.org",
+		WorkDirectory: "cron_service/nodejs",
+	}
+
+	if !semver.IsValid(r.Version()) {
+		t.Errorf("not valid %s", r.Version())
 	}
 }

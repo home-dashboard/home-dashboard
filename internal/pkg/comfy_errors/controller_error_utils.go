@@ -21,7 +21,7 @@ func (C *controllerUtils) RespondEntityValidationError(c *gin.Context, message s
 }
 
 func (C *controllerUtils) RespondEntityNotFoundError(c *gin.Context, message string, a ...any) {
-	_ = c.AbortWithError(http.StatusBadRequest, NewResponseError(EntityNotFoundError, message, a...))
+	_ = c.AbortWithError(http.StatusNotFound, NewResponseError(EntityNotFoundError, message, a...))
 }
 
 var ControllerUtils = &controllerUtils{}
