@@ -1,21 +1,20 @@
 package controller
 
 import (
-	"encoding/json"
-	"github.com/go-git/go-git/v5/config"
-	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strconv"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants/templates"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/service"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
+	"net/http"
+	"path/filepath"
+	"strconv"
+	"time"
 )
 
 // CreateProject 创建 Project
@@ -41,13 +40,13 @@ func CreateProject(c *gin.Context) {
 		return
 	}
 
-	affected, err := service.CreateOrUpdateProjects([]model.Project{project})
-	if err != nil {
+	if err := initialRepository(project); err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
 	}
 
-	if err := initialRepository(project); err != nil {
+	affected, err := service.CreateOrUpdateProjects([]model.Project{project})
+	if err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
 	}
@@ -129,39 +128,61 @@ func DeleteProject(c *gin.Context) {
 func initialRepository(project model.Project) error {
 	repoDir := filepath.Join(constants.RepositoriesPath, project.Name)
 
-	repo, err := git.PlainInit(repoDir, true)
-	if err != nil {
-		return err
-	}
-	if err := repo.CreateBranch(&config.Branch{
-		Name: "master",
-	}); err != nil {
-		return err
-	}
-
-	worktree, err := repo.Worktree()
+	repo, err := git.PlainInitWithOptions(repoDir, &git.PlainInitOptions{
+		InitOptions: git.InitOptions{
+			DefaultBranch: "refs/heads/master",
+		},
+		Bare: true,
+	})
 	if err != nil {
 		return err
 	}
 
-	if err := worktree.Checkout(&git.CheckoutOptions{
-		Branch: "master",
-	}); err != nil {
+	tree := object.Tree{
+		Entries: []object.TreeEntry{},
+	}
+
+	createRepositoryFile := func(fileName string, data any) error {
+		fileObject := repo.Storer.NewEncodedObject()
+		fileObject.SetType(plumbing.BlobObject)
+		w, err := fileObject.Writer()
+		if err != nil {
+			return err
+		}
+
+		if err := templates.ExecuteTemplate(fileName, data, w); err != nil {
+			return err
+		}
+		if err := w.Close(); err != nil {
+			return err
+		}
+
+		fileHash, err := repo.Storer.SetEncodedObject(fileObject)
+		if err != nil {
+			return err
+		}
+
+		treeEntry := object.TreeEntry{
+			Name: fileName,
+			Mode: filemode.Regular,
+			Hash: fileHash,
+		}
+
+		tree.Entries = append(tree.Entries, treeEntry)
+
+		return nil
+	}
+
+	if err := createRepositoryFile(".gitattributes", nil); err != nil {
 		return err
 	}
-
-	type PackageJSON struct {
-		Name            string            `json:"name"`
-		Version         string            `json:"version"`
-		Description     string            `json:"description"`
-		Main            string            `json:"main"`
-		Scripts         map[string]string `json:"scripts"`
-		Dependencies    map[string]string `json:"dependencies"`
-		DevDependencies map[string]string `json:"devDependencies"`
+	if err := createRepositoryFile(".gitignore", nil); err != nil {
+		return err
 	}
-
-	packageJSONPath := filepath.Join(repoDir, "package.json")
-	bytes, err := json.Marshal(PackageJSON{
+	if err := createRepositoryFile("README.md", nil); err != nil {
+		return err
+	}
+	if err := createRepositoryFile("package.json", templates.PackageJSONData{
 		Name:            project.Name,
 		Version:         "v0.0.0",
 		Description:     project.Description,
@@ -169,29 +190,44 @@ func initialRepository(project model.Project) error {
 		Scripts:         nil,
 		Dependencies:    nil,
 		DevDependencies: nil,
-	})
+	}); err != nil {
+		return err
+	}
+
+	treeObject := repo.Storer.NewEncodedObject()
+	err = tree.Encode(treeObject)
 	if err != nil {
 		return err
-
 	}
-	err = os.WriteFile(packageJSONPath, bytes, 0644)
+
+	treeHash, err := repo.Storer.SetEncodedObject(treeObject)
 	if err != nil {
 		return err
 	}
 
-	if _, err := worktree.Add("."); err != nil {
+	newCommit := object.Commit{
+		Author:    object.Signature{Name: "siaikin", Email: "abc1310054026@outlook.com", When: time.Date(2024, 1, 9, 5, 38, 0, 0, time.UTC)},
+		Committer: object.Signature{Name: "HOME Dashboard robot", Email: "abc1310054026@outlook.com", When: time.Now()},
+		Message:   "Initial commit",
+		TreeHash:  treeHash,
+	}
+
+	commitObject := repo.Storer.NewEncodedObject()
+	err = newCommit.Encode(commitObject)
+	if err != nil {
 		return err
 	}
 
-	hash, err := worktree.Commit("Initial Nodejs Repository", &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  "HOME Dashboard robot",
-			Email: "abc1310054026@outlook.com",
-			When:  time.Now(),
-		},
-	})
+	commitHash, err := repo.Storer.SetEncodedObject(commitObject)
+	if err != nil {
+		return err
+	}
 
-	if _, err := repo.CommitObject(hash); err != nil {
+	// Now, point the "main" branch to the newly-created commit
+
+	ref := plumbing.NewHashReference("refs/heads/master", commitHash)
+	err = repo.Storer.SetReference(ref)
+	if err != nil {
 		return err
 	}
 

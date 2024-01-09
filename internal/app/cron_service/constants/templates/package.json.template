@@ -1,0 +1,22 @@
+{
+  "name": "{{ .Name }}",
+  "version": "{{ .Version }}",
+  "description": "{{ .Description }}",
+  "main": "{{ .Main }}",
+  "scripts": {
+  {{ range $key, $value := .Scripts }}
+    "{{ $key }}": "{{ $value }}",
+  {{ end }}
+  },
+  "dependencies": {
+  {{ range $key, $value := .Dependencies }}
+    "{{ $key }}": "{{ $value }}",
+  {{ end }}
+  },
+  "devDependencies": {
+  {{ range $key, $value := .DevDependencies }}
+      "{{ $key }}": "{{ $value }}",
+  {{ end }}
+  },
+  "private": true
+}
