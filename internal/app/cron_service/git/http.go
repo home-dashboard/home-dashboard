@@ -30,7 +30,7 @@ func HTTPInfoRefs(c *gin.Context) {
 		return
 	}
 
-	if err := AdvertisedReferences(c, service, session, writer); err != nil {
+	if err := AdvertisedReferences(Context{Context: c, OverHTTP: true}, service, session, writer); err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
 	}
@@ -59,7 +59,7 @@ func HTTPUploadPack(c *gin.Context) {
 		return
 	}
 
-	if err := UploadPack(c, session.(transport.UploadPackSession), reader, writer); err != nil {
+	if err := UploadPack(Context{Context: c, OverHTTP: true}, session.(transport.UploadPackSession), reader, writer); err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
 	}
@@ -88,7 +88,7 @@ func HTTPReceivePack(c *gin.Context) {
 		return
 	}
 
-	if err := ReceivePack(c, session.(transport.ReceivePackSession), reader, writer); err != nil {
+	if err := ReceivePack(Context{Context: c, OverHTTP: true}, session.(transport.ReceivePackSession), reader, writer); err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
 	}

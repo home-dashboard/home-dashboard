@@ -12,12 +12,17 @@ func SSHUploadPack(c context.Context, repoName string, r io.Reader, w io.Writer)
 		return err
 	}
 
-	err = AdvertisedReferences(c, "git-upload-pack", session, w)
+	C := Context{
+		Context:  c,
+		OverHTTP: false,
+	}
+
+	err = AdvertisedReferences(C, "git-upload-pack", session, w)
 	if err != nil {
 		return err
 	}
 
-	return UploadPack(c, session.(transport.UploadPackSession), r, w)
+	return UploadPack(C, session.(transport.UploadPackSession), r, w)
 }
 
 func SSHReceivePack(c context.Context, repoName string, r io.Reader, w io.Writer) error {
@@ -26,12 +31,17 @@ func SSHReceivePack(c context.Context, repoName string, r io.Reader, w io.Writer
 		return err
 	}
 
-	err = AdvertisedReferences(c, "git-receive-pack", session, w)
+	C := Context{
+		Context:  c,
+		OverHTTP: false,
+	}
+
+	err = AdvertisedReferences(C, "git-receive-pack", session, w)
 	if err != nil {
 		return err
 	}
 
-	return ReceivePack(c, session.(transport.ReceivePackSession), ReaderFakeCloser{r: r}, w)
+	return ReceivePack(C, session.(transport.ReceivePackSession), ReaderFakeCloser{r: r}, w)
 }
 
 type ReaderFakeCloser struct {

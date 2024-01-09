@@ -99,7 +99,7 @@ type Overseer struct {
 	rpcClient *upgradeServiceClient
 }
 
-// Run 将检查传入的 Config 是否合法, 并执行传入的 program 函数. 该函数会阻塞当前进程直到接收到终止信号.
+// Run 将检查传入的 Config 是否合法, 并执行传入的 program 函数.
 // - 如果当前进程是 worker 进程, 则会执行 program 函数, 并阻塞当前进程, 直到接收到中断信号.
 // - 如果当前进程是 manager 进程, 则会执行 manager 函数, 并阻塞当前进程, 直到接收到系统中断信号.
 func (o *Overseer) Run(program ProgramFunc) (func(ctx context.Context), error) {

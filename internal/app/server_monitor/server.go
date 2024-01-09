@@ -45,7 +45,7 @@ func Initial(db *gorm.DB) {
 	}
 }
 
-func Start(ctx context.Context, listener *net.Listener) {
+func Start(ctx context.Context, listener net.Listener) {
 	monitor_realtime.Loop(ctx, time.Second)
 	monitor_process_realtime.Loop(ctx, time.Second)
 	user_notification.StartListenUserNotificationNotify(ctx)

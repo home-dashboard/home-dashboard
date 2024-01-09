@@ -13,7 +13,12 @@ import (
 	"path/filepath"
 )
 
-func AdvertisedReferences(c context.Context, serviceType string, session transport.Session, w io.Writer) error {
+type Context struct {
+	context.Context
+	OverHTTP bool
+}
+
+func AdvertisedReferences(c Context, serviceType string, session transport.Session, w io.Writer) error {
 	switch serviceType {
 	case "git-upload-pack":
 		return advertisedUploadPack(c, session.(transport.UploadPackSession), w)
@@ -52,14 +57,16 @@ func CreateSession(service, repositoryName string) (transport.Session, error) {
 	}
 }
 
-func advertisedUploadPack(c context.Context, session transport.UploadPackSession, w io.Writer) error {
+func advertisedUploadPack(c Context, session transport.UploadPackSession, w io.Writer) error {
 	advRefs, err := session.AdvertisedReferencesContext(c)
 	if err != nil {
 		return err
 	}
-	advRefs.Prefix = [][]byte{
-		[]byte("# service=git-upload-pack"),
-		pktline.Flush,
+	if c.OverHTTP {
+		advRefs.Prefix = [][]byte{
+			[]byte("# service=git-upload-pack"),
+			pktline.Flush,
+		}
 	}
 	err = advRefs.Capabilities.Add("no-thin")
 	if err != nil {
@@ -69,14 +76,16 @@ func advertisedUploadPack(c context.Context, session transport.UploadPackSession
 	return advRefs.Encode(w)
 }
 
-func advertisedReceivePack(c context.Context, session transport.ReceivePackSession, w io.Writer) error {
+func advertisedReceivePack(c Context, session transport.ReceivePackSession, w io.Writer) error {
 	advRefs, err := session.AdvertisedReferencesContext(c)
 	if err != nil {
 		return err
 	}
-	advRefs.Prefix = [][]byte{
-		[]byte("# service=git-receive-pack"),
-		pktline.Flush,
+	if c.OverHTTP {
+		advRefs.Prefix = [][]byte{
+			[]byte("# service=git-receive-pack"),
+			pktline.Flush,
+		}
 	}
 	err = advRefs.Capabilities.Add("no-thin")
 	if err != nil {
@@ -86,10 +95,10 @@ func advertisedReceivePack(c context.Context, session transport.ReceivePackSessi
 	return advRefs.Encode(w)
 }
 
-func UploadPack(c context.Context, session transport.UploadPackSession, r io.Reader, w io.Writer) error {
+func UploadPack(c Context, session transport.UploadPackSession, r io.Reader, w io.Writer) error {
 	return uploadPack(c, session, r, w)
 }
-func uploadPack(c context.Context, session transport.UploadPackSession, r io.Reader, w io.Writer) error {
+func uploadPack(c Context, session transport.UploadPackSession, r io.Reader, w io.Writer) error {
 	req := packp.NewUploadPackRequest()
 	if err := req.Decode(r); err != nil {
 		return err
@@ -103,10 +112,10 @@ func uploadPack(c context.Context, session transport.UploadPackSession, r io.Rea
 	return res.Encode(w)
 }
 
-func ReceivePack(c context.Context, session transport.ReceivePackSession, r io.Reader, w io.Writer) error {
+func ReceivePack(c Context, session transport.ReceivePackSession, r io.Reader, w io.Writer) error {
 	return receivePack(c, session, r, w)
 }
-func receivePack(c context.Context, session transport.ReceivePackSession, r io.Reader, w io.Writer) error {
+func receivePack(c Context, session transport.ReceivePackSession, r io.Reader, w io.Writer) error {
 	req := packp.NewReferenceUpdateRequest()
 	if err := req.Decode(r); err != nil {
 		return err

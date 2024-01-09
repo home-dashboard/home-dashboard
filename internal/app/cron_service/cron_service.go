@@ -1,13 +1,14 @@
 package cron_service
 
 import (
-	"context"
-	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
-	"github.com/siaikin/home-dashboard/internal/app/cron_service/git"
+	"errors"
 	"log"
 	"net"
-	"os"
-	"path/filepath"
+
+	"github.com/samber/lo"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service/git"
+	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gliderlabs/ssh"
@@ -15,10 +16,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
 )
 
-type CornServiceContext struct {
-	context.Context
-	Router *gin.RouterGroup
-}
+var logger = comfy_log.New("[cron_Service]")
 
 // MountHTTPRouter 把 cron_service 的 http 路由端点挂载到给定的 router 上.
 func MountHTTPRouter(router *gin.RouterGroup) error {
@@ -57,27 +55,23 @@ func loadModel() error {
 	return model.MigrateModel()
 }
 
-func ServeSSH(listener *net.Listener) error {
+// ServeSSH 在 listener 上启动 ssh 服务.
+// TODO 应该有一个分发器, 根据不同的请求, 调用不同的处理函数. 但目前就先这样吧
+func ServeSSH(listener net.Listener) error {
 	server := ssh.Server{
-		//ChannelHandlers: map[string]ssh.ChannelHandler{
-		//	"session": func(srv *ssh.Server, conn *ssh2.ServerConn, newChan ssh2.NewChannel, ctx ssh.Context) {
-		//		ch, req, err := newChan.Accept()
-		//		if err != nil {
-		//			return
-		//		}
-		//		handleSSHSession(constants.RepositoriesPath, ch, req)
-		//	},
-		//},
 		Handler: func(session ssh.Session) {
-			//gitProtolVersion, ok := lo.Find(session.Environ(), func(item string) bool {
-			//	item ==
-			//})
+			// 检查是否是 git 协议 v2
+			_, ok := lo.Find(session.Environ(), func(item string) bool {
+				return item == "GIT_PROTOCOL=version=2"
+			})
+			if !ok {
+				logger.Warn("not supported git protocol\n")
+				_ = session.Exit(1)
+			}
 
 			commandArgs := session.Command()
 			serviceType := commandArgs[0]
 			repoName := commandArgs[1]
-
-			log.Printf("dir: %s", filepath.Join(constants.RepositoriesPath, repoName))
 
 			switch serviceType {
 			case "git-upload-pack":
@@ -97,11 +91,20 @@ func ServeSSH(listener *net.Listener) error {
 	}
 
 	// 读取用户目录下的私钥
-	if homeDir, err := os.UserHomeDir(); err != nil {
-		return err
-	} else if err := server.SetOption(ssh.HostKeyFile(filepath.Join(homeDir, ".ssh", "id_rsa"))); err != nil {
+	if err := server.SetOption(ssh.HostKeyFile(constants.SSHPrivateKeyPath)); err != nil {
 		return err
 	}
 
-	return server.Serve(*listener)
+	go func() {
+		if err := server.Serve(listener); err != nil {
+			if errors.Is(err, ssh.ErrServerClosed) {
+				logger.Info("err: %v, don't worry, it's normal\n", err)
+			} else {
+				logger.Fatal("start ssh server failed, %w\n", err)
+			}
+		}
+
+	}()
+
+	return nil
 }

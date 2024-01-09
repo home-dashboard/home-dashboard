@@ -191,7 +191,7 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 
 var server *http.Server
 
-func startServer(listener *net.Listener, mock bool) error {
+func startServer(listener net.Listener, mock bool) error {
 	engine := setupEngine(mock)
 
 	setupRouter(engine.Group("/v1/web"), mock)
@@ -211,7 +211,7 @@ func startServer(listener *net.Listener, mock bool) error {
 	}
 
 	logger.Info("serving on port %s\n", server.Addr)
-	return server.Serve(*listener)
+	return server.Serve(listener)
 }
 
 func stopServer(ctx context.Context) {

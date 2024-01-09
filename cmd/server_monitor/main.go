@@ -14,6 +14,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/overseer"
 	"github.com/siaikin/home-dashboard/internal/pkg/overseer/fetcher"
 	"github.com/siaikin/home-dashboard/internal/pkg/verison_info"
+	"github.com/soheilhy/cmux"
 	"golang.org/x/net/context"
 	"log"
 	"os"
@@ -82,10 +83,19 @@ func main() {
 			return fmt.Errorf("no listeners")
 		}
 
-		server_monitor.Start(context.Background(), &listeners[0])
-		if err := cron_service.ServeSSH(&listeners[1]); err != nil {
-			logger.Fatal("mount ssh failed %s", err.Error())
+		mux := cmux.New(listeners[0])
+		httpL := mux.Match(cmux.HTTP1Fast())
+		sshL := mux.Match(cmux.Any())
+		server_monitor.Start(context.Background(), httpL)
+		if err := cron_service.ServeSSH(sshL); err != nil {
+			logger.Fatal("mount ssh failed %w\n", err)
 		}
+
+		go func() {
+			if err := mux.Serve(); err != nil {
+				logger.Fatal("multiplex serve failed, %w\n", err)
+			}
+		}()
 
 		return nil
 	})
@@ -117,7 +127,7 @@ func makeOverseerConfig() (overseer.Config, error) {
 	config := configuration.Get()
 	overseerConfig := overseer.Config{
 		DebugMode: config.ServerMonitor.Development.Enable,
-		Addresses: []string{":" + strconv.FormatInt(int64(config.ServerMonitor.Port), 10), ":8082"},
+		Addresses: []string{":" + strconv.FormatInt(int64(config.ServerMonitor.Port), 10)},
 	}
 
 	updateConfig := config.ServerMonitor.Update
