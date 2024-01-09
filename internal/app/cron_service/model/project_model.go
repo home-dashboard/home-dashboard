@@ -5,7 +5,7 @@ import "github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_mo
 // Project 表示一个项目
 type Project struct {
 	monitor_model.Model
-	Name        string `json:"name"`
+	Name        string `json:"name" binding:"required"`
 	DisplayName string `json:"displayName"`
 	Description string `json:"description"`
 }

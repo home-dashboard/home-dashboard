@@ -13,9 +13,12 @@ import (
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"time"
 )
+
+var repositoryNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 // CreateProject 创建 Project
 // @Summary CreateProject
@@ -27,8 +30,11 @@ import (
 // @Router project/create [post]
 func CreateProject(c *gin.Context) {
 	var project model.Project
-	if err := c.ShouldBindJSON(&project); err != nil {
+	if err := c.BindJSON(&project); err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
+		return
+	} else if !repositoryNameRegexp.MatchString(project.Name) {
+		comfy_errors.ControllerUtils.RespondEntityValidationError(c, "invalid project name")
 		return
 	}
 
@@ -90,6 +96,9 @@ func UpdateProject(c *gin.Context) {
 	if err := c.ShouldBindJSON(&project); err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
+	} else if !repositoryNameRegexp.MatchString(project.Name) {
+		comfy_errors.ControllerUtils.RespondEntityValidationError(c, "invalid project name")
+		return
 	} else if ID, err := strconv.ParseUint(c.Param("id"), 10, 0); err != nil {
 		comfy_errors.ControllerUtils.RespondEntityValidationError(c, "invalid id")
 		return
@@ -126,7 +135,7 @@ func DeleteProject(c *gin.Context) {
 }
 
 func initialRepository(project model.Project) error {
-	repoDir := filepath.Join(constants.RepositoriesPath, project.Name)
+	repoDir := filepath.Join(constants.RepositoriesPath, project.Name+".git")
 
 	repo, err := git.PlainInitWithOptions(repoDir, &git.PlainInitOptions{
 		InitOptions: git.InitOptions{
