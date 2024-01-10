@@ -5,7 +5,6 @@ import (
 	"log"
 	"net"
 
-	"github.com/samber/lo"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/git"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
@@ -42,6 +41,7 @@ func loadRouter(router *gin.RouterGroup) error {
 	router.GET("/project/list", controller.ListProjects)
 	router.PUT("/project/update", controller.UpdateProject)
 	router.DELETE("/project/delete", controller.DeleteProject)
+	router.PUT("/project/run/:project", controller.RunProject)
 
 	// git 相关接口
 	router.GET("/:name/info/refs", git.HTTPInfoRefs)
@@ -60,14 +60,14 @@ func loadModel() error {
 func ServeSSH(listener net.Listener) error {
 	server := ssh.Server{
 		Handler: func(session ssh.Session) {
-			// 检查是否是 git 协议 v2
-			_, ok := lo.Find(session.Environ(), func(item string) bool {
-				return item == "GIT_PROTOCOL=version=2"
-			})
-			if !ok {
-				logger.Warn("not supported git protocol\n")
-				_ = session.Exit(1)
-			}
+			//检查是否是 git 协议 v2
+			//_, ok := lo.Find(session.Environ(), func(item string) bool {
+			//	return item == "GIT_PROTOCOL=version=2"
+			//})
+			//if !ok {
+			//	logger.Warn("not supported git protocol\n")
+			//	_ = session.Exit(1)
+			//}
 
 			commandArgs := session.Command()
 			serviceType := commandArgs[0]

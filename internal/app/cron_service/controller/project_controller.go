@@ -9,10 +9,10 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants/templates"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service/project"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/service"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"net/http"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"time"
@@ -135,7 +135,7 @@ func DeleteProject(c *gin.Context) {
 }
 
 func initialRepository(project model.Project) error {
-	repoDir := filepath.Join(constants.RepositoriesPath, project.Name+".git")
+	repoDir := constants.RepositoryPath(project)
 
 	repo, err := git.PlainInitWithOptions(repoDir, &git.PlainInitOptions{
 		InitOptions: git.InitOptions{
@@ -245,4 +245,27 @@ func initialRepository(project model.Project) error {
 
 	return nil
 
+}
+
+// RunProject 运行 Project
+// @Summary RunProject
+// @Description RunProject
+// @Tags RunProject
+// @Produce json
+// @Param project path string true "Project Name"
+// @Param branch query string true "Branch Name"
+// @Success 200 {object} string
+// @Router project/run/{project} [post]
+func RunProject(c *gin.Context) {
+	projectName := c.Param("project")
+	branchName := c.Query("branch")
+
+	if err := project.Exec(model.Project{
+		Name: projectName,
+	}, branchName); err != nil {
+		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
+		return
+	}
+
+	c.Status(http.StatusOK)
 }

@@ -12,6 +12,7 @@ func MigrateModel() error {
 
 	if err := db.AutoMigrate(
 		&Project{},
+		&ProjectExecuteRecord{},
 	); err != nil {
 		logger.Fatal("auto generate table failed, %s\n", err)
 	}

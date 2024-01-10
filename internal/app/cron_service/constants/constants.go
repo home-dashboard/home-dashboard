@@ -1,6 +1,7 @@
 package constants
 
 import (
+	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
 	"os"
 	"path/filepath"
 
@@ -16,6 +17,7 @@ var logger = comfy_log.New("[cron_service constants]")
 // - SSHPrivateKeyPath: ssh 私钥文件的路径.
 var (
 	RootPath          string
+	ProjectsPath      string
 	RepositoriesPath  string
 	NodejsPath        string
 	SSHPrivateKeyPath string
@@ -23,6 +25,7 @@ var (
 
 func init() {
 	RootPath = filepath.Join(utils.WorkspaceDir(), "cron_service")
+	ProjectsPath = filepath.Join(RootPath, "projects")
 	RepositoriesPath = filepath.Join(RootPath, "repos")
 	NodejsPath = filepath.Join(RootPath, "nodejs")
 
@@ -31,4 +34,12 @@ func init() {
 	} else {
 		SSHPrivateKeyPath = filepath.Join(homeDir, ".ssh", "id_rsa")
 	}
+}
+
+func RepositoryPath(project model.Project) string {
+	return filepath.Join(ProjectsPath, project.Name, project.Name+".git")
+}
+
+func DatabasePath(project model.Project, branchName string) string {
+	return filepath.Join(ProjectsPath, project.Name, "database", branchName+".db")
 }

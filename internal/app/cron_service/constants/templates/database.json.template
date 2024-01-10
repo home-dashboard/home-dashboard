@@ -2,10 +2,10 @@
   "$schema": "{{ .SchemaUrl }}",
   "tables": [
     {
-      "name": "TABLE NAME",
+      "name": "tableName",
       "columns": [
         {
-          "name": "COLUMN NAME",
+          "name": "columnName",
           "type": "string"
         }
       ]

@@ -9,8 +9,9 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/server"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
+	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
 	"io"
-	"path/filepath"
+	"strings"
 )
 
 type Context struct {
@@ -29,7 +30,7 @@ func AdvertisedReferences(c Context, serviceType string, session transport.Sessi
 	}
 }
 
-func CreateSession(service, repositoryName string) (transport.Session, error) {
+func CreateSession(service, projectName string) (transport.Session, error) {
 	switch service {
 	case "git-upload-pack":
 	case "git-receive-pack":
@@ -37,7 +38,8 @@ func CreateSession(service, repositoryName string) (transport.Session, error) {
 		return nil, fmt.Errorf("unsupported service %s", service)
 	}
 
-	repositoryPath := filepath.Join(constants.RepositoriesPath, repositoryName)
+	projectName = strings.TrimSuffix(projectName, ".git")
+	repositoryPath := constants.RepositoryPath(model.Project{Name: projectName})
 
 	endpoint, err := transport.NewEndpoint("/")
 	if err != nil {
