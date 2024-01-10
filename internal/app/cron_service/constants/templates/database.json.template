@@ -1,0 +1,14 @@
+{
+  "$schema": "{{ .SchemaUrl }}",
+  "tables": [
+    {
+      "name": "TABLE NAME",
+      "columns": [
+        {
+          "name": "COLUMN NAME",
+          "type": "string"
+        }
+      ]
+    }
+  ]
+}

@@ -202,6 +202,9 @@ func initialRepository(project model.Project) error {
 	}); err != nil {
 		return err
 	}
+	if err := createRepositoryFile("database.json", map[string]any{"SchemaUrl": "https://gist.githubusercontent.com/siaikin/e14e83015bb93b651ccbb1b060397673/raw/8acdd63c266d23ac800e9b570b0edd1145ce28ae/database_schema.json"}); err != nil {
+		return err
+	}
 
 	treeObject := repo.Storer.NewEncodedObject()
 	err = tree.Encode(treeObject)

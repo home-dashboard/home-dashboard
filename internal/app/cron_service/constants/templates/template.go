@@ -2,7 +2,6 @@ package templates
 
 import (
 	_ "embed"
-	"fmt"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"io"
 	"text/template"
@@ -22,6 +21,9 @@ var PackageJsonTemplate string
 //go:embed README.md.template
 var ReadmeMdTemplate string
 
+//go:embed database.json.template
+var DatabaseJsonTemplate string
+
 var Templates = template.New("templates")
 
 func init() {
@@ -37,21 +39,13 @@ func init() {
 	if _, err := Templates.New("README.md").Parse(ReadmeMdTemplate); err != nil {
 		logger.Fatal("parse ReadmeMdTemplate failed: %s\n", err.Error())
 	}
+	if _, err := Templates.New("database.json").Parse(DatabaseJsonTemplate); err != nil {
+		logger.Fatal("parse DatabaseSchema failed: %s\n", err.Error())
+	}
 }
 
 func ExecuteTemplate(templateName string, data any, w io.Writer) error {
-	switch templateName {
-	case ".gitattributes":
-		return Templates.ExecuteTemplate(w, ".gitattributes", data)
-	case ".gitignore":
-		return Templates.ExecuteTemplate(w, ".gitignore", data)
-	case "package.json":
-		return Templates.ExecuteTemplate(w, "package.json", data)
-	case "README.md":
-		return Templates.ExecuteTemplate(w, "README.md", data)
-	default:
-		return fmt.Errorf("unknown template name: %s", templateName)
-	}
+	return Templates.ExecuteTemplate(w, templateName, data)
 }
 
 type PackageJSONData struct {
