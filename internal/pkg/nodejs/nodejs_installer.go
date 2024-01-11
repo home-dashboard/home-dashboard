@@ -33,7 +33,7 @@ const (
 
 type Installer struct {
 	MirrorURL string
-	// WorkDirectory 是相对与当前工作目录的路径
+	// WorkDirectory 是相对与当前工作目录的路径. 当前工作目录从 utils.WorkspaceDir() 获取.
 	WorkDirectory string
 	// OnProgress 用于跟踪下载进度.
 	OnProgress func(written, total uint64)

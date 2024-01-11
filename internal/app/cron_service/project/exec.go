@@ -27,6 +27,7 @@ func Exec(project model.Project, branchName string) error {
 	return nil
 }
 
+// migrateDatabaseSchema 检查是否需要应用新的数据库 schema
 func migrateDatabaseSchema(project model.Project, branchName string, repo *git.Repository, prevHash plumbing.Hash) error {
 	ref, err := repo.Reference(plumbing.ReferenceName("refs/heads/"+branchName), true)
 	if err != nil {
