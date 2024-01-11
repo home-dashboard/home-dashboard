@@ -7,7 +7,6 @@ import (
 	jsonschema2 "github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"gorm.io/gorm"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,7 +67,7 @@ func AutoMigrate(db *gorm.DB, database Database) error {
 	return nil
 }
 
-func ValidateDatabaseJson(r io.Reader) error {
+func ValidateDatabaseJson(str string) error {
 	compiler := jsonschema2.NewCompiler()
 	if err := compiler.AddResource("database_schema.json", strings.NewReader(DatabaseSchema)); err != nil {
 		return err
@@ -79,7 +78,7 @@ func ValidateDatabaseJson(r io.Reader) error {
 	}
 
 	var databaseStruct map[string]any
-	if err := json.NewDecoder(r).Decode(&databaseStruct); err != nil {
+	if err := json.Unmarshal([]byte(str), &databaseStruct); err != nil {
 		return err
 	}
 	delete(databaseStruct, "$schema")

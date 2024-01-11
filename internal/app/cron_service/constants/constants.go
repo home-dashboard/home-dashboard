@@ -12,13 +12,12 @@ import (
 var logger = comfy_log.New("[cron_service constants]")
 
 // RootPath 是被 cron_service 管理的文件的根目录.
-// - RepositoriesPath: git 仓库的根目录.
 // - NodejsPath: nodejs 的解压目录.
+// - ProjectsPath: 项目的根目录.
 // - SSHPrivateKeyPath: ssh 私钥文件的路径.
 var (
 	RootPath          string
 	ProjectsPath      string
-	RepositoriesPath  string
 	NodejsPath        string
 	SSHPrivateKeyPath string
 )
@@ -26,7 +25,6 @@ var (
 func init() {
 	RootPath = filepath.Join(utils.WorkspaceDir(), "cron_service")
 	ProjectsPath = filepath.Join(RootPath, "projects")
-	RepositoriesPath = filepath.Join(RootPath, "repos")
 	NodejsPath = filepath.Join(RootPath, "nodejs")
 
 	if homeDir, err := os.UserHomeDir(); err != nil {
@@ -38,6 +36,10 @@ func init() {
 
 func RepositoryPath(project model.Project) string {
 	return filepath.Join(ProjectsPath, project.Name, project.Name+".git")
+}
+
+func ProjectRunPath(project model.Project, branch string) string {
+	return filepath.Join(ProjectsPath, project.Name, "run", branch)
 }
 
 func DatabasePath(project model.Project, branchName string) string {
