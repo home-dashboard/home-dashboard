@@ -14,9 +14,6 @@ func TestProcessRealtimeStatLoop(t *testing.T) {
 
 	for {
 		select {
-		case <-done:
-			ticker.Stop()
-			return
 		case <-ticker.C:
 			processStatList, relationship = getProcessRealtimeStatistic()
 		}

@@ -2,6 +2,7 @@ package project
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/samber/lo"
@@ -10,6 +11,7 @@ import (
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/project/db_utils"
 	runner2 "github.com/siaikin/home-dashboard/internal/app/cron_service/project/runner"
+	"golang.org/x/sync/errgroup"
 )
 
 func Exec(project model.Project, branchName string) error {
@@ -34,12 +36,30 @@ func Exec(project model.Project, branchName string) error {
 	//	return err
 	//}
 
-	runner := runner2.NodejsRunner{
-		Bin:     constants.NodejsPath,
-		Project: project,
-	}
+	runner := runner2.NewNodejsRunner(project, constants.NodejsPath)
+	eg := new(errgroup.Group)
 
-	return runner.Run(branchName)
+	eg.Go(func() error {
+		return runner.Run(branchName)
+	})
+	eg.Go(func() error {
+		//listener := runner.Listener()
+		//defer listener.Close()
+		//ch := listener.Ch()
+	loop:
+		for {
+			select {
+			case data, ok := <-runner.C:
+				if !ok {
+					break loop
+				}
+				fmt.Printf("%s", data)
+			}
+		}
+		return nil
+	})
+
+	return eg.Wait()
 }
 
 // migrateDatabaseSchema 检查是否需要应用新的数据库 schema
