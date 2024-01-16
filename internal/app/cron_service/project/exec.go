@@ -43,9 +43,6 @@ func Exec(project model.Project, branchName string) error {
 		return runner.Run(branchName)
 	})
 	eg.Go(func() error {
-		//listener := runner.Listener()
-		//defer listener.Close()
-		//ch := listener.Ch()
 	loop:
 		for {
 			select {
@@ -53,7 +50,7 @@ func Exec(project model.Project, branchName string) error {
 				if !ok {
 					break loop
 				}
-				fmt.Printf("%s", data)
+				fmt.Printf("%s\n", data)
 			}
 		}
 		return nil

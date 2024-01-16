@@ -193,7 +193,7 @@ func initialRepository(project model.Project) error {
 	}
 	if err := createRepositoryFile("package.json", templates.PackageJSONData{
 		Name:            project.Name,
-		Version:         "v0.0.0",
+		Version:         "0.0.0",
 		Description:     project.Description,
 		Main:            "main.js",
 		Scripts:         nil,

@@ -2,13 +2,11 @@ package runner
 
 import (
 	"bufio"
-	"github.com/teivah/broadcast"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/samber/lo"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
 	git2 "github.com/siaikin/home-dashboard/internal/app/cron_service/git"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
@@ -21,27 +19,32 @@ type NodejsRunner struct {
 	// Bin Nodejs 二进制文件路径
 	Bin     string
 	Project model.Project
-	relay   *broadcast.Relay[string]
 	C       chan string
 }
 
 func (r *NodejsRunner) Run(branch string) error {
-	defer func() {
-		r.relay.Close()
-	}()
+	defer close(r.C)
+
 	npmBin := filepath.Join(r.Bin, "npm")
 
-	runDir := constants.ProjectRunPath(r.Project, branch+lo.RandomString(16, lo.AlphanumericCharset))
-	repoPath := constants.RepositoryPath(r.Project)
-
-	if err := git2.CloneAndCheckout(repoPath, runDir, branch); err != nil {
-		return err
-	}
+	runDir := constants.ProjectRunPath(r.Project, branch)
 	defer func() {
 		if err := os.RemoveAll(runDir); err != nil {
 			logger.Error("remove run dir error: %v", err)
 		}
 	}()
+
+	repoPath := constants.RepositoryPath(r.Project)
+	if err := git2.CloneAndCheckout(repoPath, runDir, branch); err != nil {
+		return err
+	}
+
+	outputFilePath := constants.ProjectOutputPath(runDir)
+	outputFile, err := os.Create(outputFilePath)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
 
 	outBuffer := strings.Builder{}
 	errBuffer := strings.Builder{}
@@ -61,42 +64,27 @@ func (r *NodejsRunner) Run(branch string) error {
 	errBuffer.Reset()
 	cmd = exec.Command(npmBin, "run", "build")
 	cmd.Dir = runDir
-	reader, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
+	cmd.Env = append(cmd.Environ(), "OUTPUT_FILE="+outputFilePath)
+	cmd.Stdout = &outBuffer
+	cmd.Stderr = &errBuffer
 
-	scanner := bufio.NewScanner(reader)
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	for scanner.Scan() {
-		data := scanner.Text()
-		//r.relay.Notify(data)
-		r.C <- data
-	}
-
-	close(r.C)
-
-	if err := cmd.Wait(); err != nil {
+	if err := cmd.Run(); err != nil {
 		logger.Error(`run npm build error: %v, out: %s, err: %s`, err, outBuffer.String(), errBuffer.String())
 		return err
 	}
 
-	return nil
-}
+	scanner := bufio.NewScanner(outputFile)
+	for scanner.Scan() {
+		r.C <- scanner.Text()
+	}
 
-func (r *NodejsRunner) Listener() *broadcast.Listener[string] {
-	return r.relay.Listener(1)
+	return scanner.Err()
 }
 
 func NewNodejsRunner(project model.Project, bin string) *NodejsRunner {
 	return &NodejsRunner{
 		Bin:     bin,
 		Project: project,
-		relay:   broadcast.NewRelay[string](),
 		C:       make(chan string, 1),
 	}
 }

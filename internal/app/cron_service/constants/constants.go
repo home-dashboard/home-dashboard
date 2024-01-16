@@ -1,6 +1,7 @@
 package constants
 
 import (
+	"github.com/samber/lo"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
 	"os"
 	"path/filepath"
@@ -39,9 +40,13 @@ func RepositoryPath(project model.Project) string {
 }
 
 func ProjectRunPath(project model.Project, branch string) string {
-	return filepath.Join(ProjectsPath, project.Name, "run", branch)
+	return filepath.Join(ProjectsPath, project.Name, "run", branch+lo.RandomString(16, lo.AlphanumericCharset))
 }
 
 func DatabasePath(project model.Project, branchName string) string {
 	return filepath.Join(ProjectsPath, project.Name, "database", branchName+".db")
+}
+
+func ProjectOutputPath(runPath string) string {
+	return filepath.Join(runPath, "output")
 }
