@@ -109,7 +109,13 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 	cpuInfos, _ := psuCpu.Info()
 
 	// todo 返回所有 cpu 信息
-	cpuStat.InfoStat = cpuInfos[0]
+	for index, item := range cpuInfos {
+		if index != 0 {
+			continue
+		}
+
+		cpuStat.InfoStat = item
+	}
 
 	cpuStat.LogicalCounts, _ = psuCpu.Counts(true)
 	cpuStat.PhysicalCounts, _ = psuCpu.Counts(false)

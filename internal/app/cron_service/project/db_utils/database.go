@@ -28,19 +28,18 @@ type Column struct {
 	Type string `json:"type" jsonschema:"title=column data type, enum=int, enum=uint, enum=time, enum=float, enum=boolean, enum=string, required=true"`
 }
 
-var DatabaseSchema string
+var databaseSchema *jsonschema2.Schema
 
 func init() {
-	reflector := jsonschema.Reflector{
-		Anonymous: true,
-	}
-	schema := reflector.Reflect(&Database{})
-	bytes, err := json.MarshalIndent(schema, "", " ")
+	schemaString, err := generateJsonSchema(Database{})
 	if err != nil {
 		logger.Fatal("generate database schema failed, %w", err)
 	}
 
-	DatabaseSchema = string(bytes)
+	databaseSchema, err = generateJsonSchemaValidator(schemaString)
+	if err != nil {
+		logger.Fatal("generate database schema validator failed, %w", err)
+	}
 }
 
 func OpenOrCreate(dsn string) (*gorm.DB, error) {
@@ -57,35 +56,70 @@ func OpenOrCreate(dsn string) (*gorm.DB, error) {
 	return db, nil
 }
 
-func AutoMigrate(db *gorm.DB, database Database) error {
-	for _, table := range database.Tables {
-		if err := db.Table(table.Name).AutoMigrate(TableStructToGormModel(table)); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func ValidateDatabaseJson(str string) error {
-	compiler := jsonschema2.NewCompiler()
-	if err := compiler.AddResource("database_schema.json", strings.NewReader(DatabaseSchema)); err != nil {
-		return err
-	}
-	sch, err := compiler.Compile("database_schema.json")
-	if err != nil {
-		return err
-	}
-
 	var databaseStruct map[string]any
 	if err := json.Unmarshal([]byte(str), &databaseStruct); err != nil {
 		return err
 	}
 	delete(databaseStruct, "$schema")
 
-	if err := sch.Validate(databaseStruct); err != nil {
+	if err := databaseSchema.Validate(databaseStruct); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func ValidateJson(str string, schemaStruct any) error {
+	var jsonStruct map[string]any
+	if err := json.Unmarshal([]byte(str), &jsonStruct); err != nil {
+		return err
+	}
+	delete(jsonStruct, "$schema")
+
+	return ValidateJsonStruct(jsonStruct, schemaStruct)
+
+}
+
+func ValidateJsonStruct(jsonStruct map[string]any, schemaStruct any) error {
+	schemaString, err := generateJsonSchema(schemaStruct)
+	if err != nil {
+		return err
+	}
+
+	schema, err := generateJsonSchemaValidator(schemaString)
+	if err != nil {
+		return err
+	}
+
+	delete(jsonStruct, "$schema")
+
+	if err := schema.Validate(jsonStruct); err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func generateJsonSchema(s any) (string, error) {
+	reflector := jsonschema.Reflector{
+		Anonymous: true,
+	}
+	schema := reflector.Reflect(&s)
+	bytes, err := json.MarshalIndent(schema, "", " ")
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
+}
+
+func generateJsonSchemaValidator(schema string) (*jsonschema2.Schema, error) {
+	compiler := jsonschema2.NewCompiler()
+	err := compiler.AddResource("database_schema.json", strings.NewReader(schema))
+	if err != nil {
+		return nil, err
+	}
+	return compiler.Compile("database_schema.json")
 }

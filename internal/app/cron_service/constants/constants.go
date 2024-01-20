@@ -50,3 +50,16 @@ func DatabasePath(project model.Project, branchName string) string {
 func ProjectOutputPath(runPath string) string {
 	return filepath.Join(runPath, "output")
 }
+
+var ProjectRepoSpecificDir = ".home-dashboard"
+
+var templateUrlMap = map[model.RunnerType]string{
+	model.RunnerTypeNodejs:  "https://github.com/home-dashboard/cron-service-playwright-template.git",
+	model.RunnerTypePython:  "NONE",
+	model.RunnerTypeShell:   "NONE",
+	model.RunnerTypeUnknown: "NONE",
+}
+
+func ProjectTemplateUrl(runnerType model.RunnerType) string {
+	return templateUrlMap[runnerType]
+}

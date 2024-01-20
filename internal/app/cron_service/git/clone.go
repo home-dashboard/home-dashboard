@@ -25,3 +25,20 @@ func CloneAndCheckout(url string, path string, branch string) error {
 
 	return nil
 }
+
+func CloneBareFromGitHubTemplate(path string, url string) error {
+	if err := os.MkdirAll(path, os.ModePerm); err != nil {
+		return err
+	} else if err := os.RemoveAll(path); err != nil {
+		return err
+	}
+
+	_, err := git.PlainClone(path, true, &git.CloneOptions{
+		URL: url,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

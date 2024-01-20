@@ -2,12 +2,12 @@ package db_utils
 
 import (
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
+	"gorm.io/gorm"
 	"reflect"
-	"strings"
 	"time"
 )
 
-func TableStructToGormModel(table Table) any {
+func TableStructToGormModel(db *gorm.DB, table Table) any {
 	columns := make([]reflect.StructField, 0)
 
 	// 从 monitor_model.Model 中获取 ID, CreatedAt, UpdatedAt, DeletedAt 字段
@@ -18,10 +18,10 @@ func TableStructToGormModel(table Table) any {
 
 	for _, column := range table.Columns {
 		columns = append(columns, reflect.StructField{
-			// 首字母大写
-			Name: strings.ToUpper(column.Name[0:1]) + column.Name[1:],
+			// 转换外部定义的列名为 Golang struct 属性名.(主要为首字母大写)
+			Name: db.NamingStrategy.SchemaName(column.Name),
 			Type: ColumnTypeToGormType(column.Type),
-			//Tag:  ColumnToGormTag(column),
+			Tag:  ColumnToGormTag(column),
 		})
 	}
 
@@ -38,6 +38,7 @@ func ColumnTypeToGormType(columnType string) reflect.Type {
 	case "time":
 		return reflect.TypeOf(time.Now())
 	case "float":
+	case "number":
 		return reflect.TypeOf(float64(0))
 	case "boolean":
 		return reflect.TypeOf(false)
@@ -50,5 +51,5 @@ func ColumnTypeToGormType(columnType string) reflect.Type {
 }
 
 func ColumnToGormTag(column Column) reflect.StructTag {
-	return reflect.StructTag(`json:"` + column.Name + `" gorm:"column:` + column.Name + `"`)
+	return reflect.StructTag(`json:"` + column.Name + `"`)
 }

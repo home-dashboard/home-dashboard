@@ -2,6 +2,8 @@ package runner
 
 import (
 	"bufio"
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,11 +17,18 @@ import (
 
 var logger = comfy_log.New("[cron_service runner]")
 
+// Data NodejsRunner 获取到的数据
+type Data struct {
+	Table  string           `json:"table"`
+	Rows   []map[string]any `json:"rows"`
+	Origin string           `json:"origin"`
+}
+
 type NodejsRunner struct {
 	// Bin Nodejs 二进制文件路径
 	Bin     string
 	Project model.Project
-	C       chan string
+	C       chan Data
 }
 
 func (r *NodejsRunner) Run(branch string) error {
@@ -36,7 +45,7 @@ func (r *NodejsRunner) Run(branch string) error {
 
 	repoPath := constants.RepositoryPath(r.Project)
 	if err := git2.CloneAndCheckout(repoPath, runDir, branch); err != nil {
-		return err
+		return fmt.Errorf("clone and checkout error: %w", err)
 	}
 
 	outputFilePath := constants.ProjectOutputPath(runDir)
@@ -75,7 +84,16 @@ func (r *NodejsRunner) Run(branch string) error {
 
 	scanner := bufio.NewScanner(outputFile)
 	for scanner.Scan() {
-		r.C <- scanner.Text()
+		str := scanner.Text()
+
+		var d Data
+		err := json.Unmarshal([]byte(str), &d)
+		if err != nil {
+			fmt.Printf("unmarshal json error: %v\n", err)
+		}
+		d.Origin = str
+
+		r.C <- d
 	}
 
 	return scanner.Err()
@@ -85,6 +103,6 @@ func NewNodejsRunner(project model.Project, bin string) *NodejsRunner {
 	return &NodejsRunner{
 		Bin:     bin,
 		Project: project,
-		C:       make(chan string, 1),
+		C:       make(chan Data, 1),
 	}
 }

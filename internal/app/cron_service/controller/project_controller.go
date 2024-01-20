@@ -2,12 +2,8 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/filemode"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants"
-	"github.com/siaikin/home-dashboard/internal/app/cron_service/constants/templates"
+	git2 "github.com/siaikin/home-dashboard/internal/app/cron_service/git"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/model"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/project"
 	"github.com/siaikin/home-dashboard/internal/app/cron_service/service"
@@ -15,7 +11,6 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
-	"time"
 )
 
 var repositoryNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
@@ -29,16 +24,16 @@ var repositoryNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 // @Success 200 {object} string
 // @Router project/create [post]
 func CreateProject(c *gin.Context) {
-	var project model.Project
-	if err := c.BindJSON(&project); err != nil {
+	var proj model.Project
+	if err := c.BindJSON(&proj); err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
-	} else if !repositoryNameRegexp.MatchString(project.Name) {
+	} else if !repositoryNameRegexp.MatchString(proj.Name) {
 		comfy_errors.ControllerUtils.RespondEntityValidationError(c, "invalid project name")
 		return
 	}
 
-	if count, err := service.CountProject(model.Project{Name: project.Name}); err != nil {
+	if count, err := service.CountProject(model.Project{Name: proj.Name}); err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
 	} else if count > 0 {
@@ -46,12 +41,14 @@ func CreateProject(c *gin.Context) {
 		return
 	}
 
-	if err := initialRepository(project); err != nil {
+	logger.Info("initial repository for project %s...", proj.Name)
+	if err := initialRepository(proj); err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
 	}
+	logger.Info("initial repository for project %s done", proj.Name)
 
-	affected, err := service.CreateOrUpdateProjects([]model.Project{project})
+	affected, err := service.CreateOrUpdateProjects([]model.Project{proj})
 	if err != nil {
 		comfy_errors.ControllerUtils.RespondUnknownError(c, err.Error())
 		return
@@ -134,117 +131,10 @@ func DeleteProject(c *gin.Context) {
 	}
 }
 
-func initialRepository(project model.Project) error {
-	repoDir := constants.RepositoryPath(project)
+func initialRepository(proj model.Project) error {
+	repoDir := constants.RepositoryPath(proj)
 
-	repo, err := git.PlainInitWithOptions(repoDir, &git.PlainInitOptions{
-		InitOptions: git.InitOptions{
-			DefaultBranch: "refs/heads/master",
-		},
-		Bare: true,
-	})
-	if err != nil {
-		return err
-	}
-
-	tree := object.Tree{
-		Entries: []object.TreeEntry{},
-	}
-
-	createRepositoryFile := func(fileName string, data any) error {
-		fileObject := repo.Storer.NewEncodedObject()
-		fileObject.SetType(plumbing.BlobObject)
-		w, err := fileObject.Writer()
-		if err != nil {
-			return err
-		}
-
-		if err := templates.ExecuteTemplate(fileName, data, w); err != nil {
-			return err
-		}
-		if err := w.Close(); err != nil {
-			return err
-		}
-
-		fileHash, err := repo.Storer.SetEncodedObject(fileObject)
-		if err != nil {
-			return err
-		}
-
-		treeEntry := object.TreeEntry{
-			Name: fileName,
-			Mode: filemode.Regular,
-			Hash: fileHash,
-		}
-
-		tree.Entries = append(tree.Entries, treeEntry)
-
-		return nil
-	}
-
-	if err := createRepositoryFile(".gitattributes", nil); err != nil {
-		return err
-	}
-	if err := createRepositoryFile(".gitignore", nil); err != nil {
-		return err
-	}
-	if err := createRepositoryFile("README.md", nil); err != nil {
-		return err
-	}
-	if err := createRepositoryFile("package.json", templates.PackageJSONData{
-		Name:            project.Name,
-		Version:         "0.0.0",
-		Description:     project.Description,
-		Main:            "main.js",
-		Scripts:         nil,
-		Dependencies:    nil,
-		DevDependencies: nil,
-	}); err != nil {
-		return err
-	}
-	if err := createRepositoryFile("database.json", map[string]any{"SchemaUrl": "https://gist.githubusercontent.com/siaikin/e14e83015bb93b651ccbb1b060397673/raw/8acdd63c266d23ac800e9b570b0edd1145ce28ae/database_schema.json"}); err != nil {
-		return err
-	}
-
-	treeObject := repo.Storer.NewEncodedObject()
-	err = tree.Encode(treeObject)
-	if err != nil {
-		return err
-	}
-
-	treeHash, err := repo.Storer.SetEncodedObject(treeObject)
-	if err != nil {
-		return err
-	}
-
-	newCommit := object.Commit{
-		Author:    object.Signature{Name: "siaikin", Email: "abc1310054026@outlook.com", When: time.Date(2024, 1, 9, 5, 38, 0, 0, time.UTC)},
-		Committer: object.Signature{Name: "HOME Dashboard robot", Email: "abc1310054026@outlook.com", When: time.Now()},
-		Message:   "Initial commit",
-		TreeHash:  treeHash,
-	}
-
-	commitObject := repo.Storer.NewEncodedObject()
-	err = newCommit.Encode(commitObject)
-	if err != nil {
-		return err
-	}
-
-	commitHash, err := repo.Storer.SetEncodedObject(commitObject)
-	if err != nil {
-		return err
-	}
-
-	// Now, point the "main" branch to the newly-created commit
-
-	ref := plumbing.NewHashReference("refs/heads/master", commitHash)
-	err = repo.Storer.SetReference(ref)
-	if err != nil {
-		return err
-	}
-
-	return nil
-
+	return git2.CloneBareFromGitHubTemplate(repoDir, constants.ProjectTemplateUrl(proj.RunnerType))
 }
 
 // RunProject 运行 Project
