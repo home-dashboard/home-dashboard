@@ -3,7 +3,6 @@ package monitor_controller
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/shirou/gopsutil/v3/host"
-	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"net/http"
 )
 
@@ -18,7 +17,8 @@ import (
 func SystemInfo(context *gin.Context) {
 	info, err := host.Info()
 	if err != nil {
-		_ = context.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+		respondUnknownError(context, err.Error())
+		return
 	}
 
 	context.JSON(http.StatusOK, info)

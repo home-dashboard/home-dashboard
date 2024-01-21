@@ -8,13 +8,13 @@ import (
 var configurationModel = monitor_model.StoredConfiguration{}
 
 // LatestConfiguration 获取最新的配置记录, 如表中记录为空, 并不会返回 error 而是返回的两个参数都为 nil.
-func LatestConfiguration() (*monitor_model.StoredConfiguration, error) {
+func LatestConfiguration() (monitor_model.StoredConfiguration, error) {
 	list, err := LatestNConfiguration(1)
 
 	if len(*list) <= 0 {
-		return nil, err
+		return monitor_model.StoredConfiguration{}, err
 	} else {
-		return &(*list)[0], err
+		return (*list)[0], err
 	}
 }
 

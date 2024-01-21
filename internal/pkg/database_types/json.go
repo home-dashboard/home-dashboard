@@ -3,8 +3,8 @@ package database_types
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/go-errors/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
@@ -21,9 +21,9 @@ func (j JSON) Value() (driver.Value, error) {
 }
 
 // Scan scan value into Jsonb, implements sql.Scanner interface
-func (j *JSON) Scan(value interface{}) error {
+func (j JSON) Scan(value interface{}) error {
 	if value == nil {
-		*j = JSON("null")
+		j = JSON("null")
 		return nil
 	}
 	var bytes []byte
@@ -40,7 +40,7 @@ func (j *JSON) Scan(value interface{}) error {
 	}
 
 	result := json.RawMessage(bytes)
-	*j = JSON(result)
+	j = JSON(result)
 	return nil
 }
 

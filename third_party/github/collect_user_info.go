@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/go-errors/errors"
 	"github.com/shurcooL/githubv4"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"net/http"
@@ -118,7 +119,7 @@ func collectUserInfo() error {
 	// 获取用户信息
 	var userInfoQueryResult userInfoQuery
 	if err := graphqlClient.Query(context.Background(), &userInfoQueryResult, nil); err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	// 仓库的统计信息
@@ -138,7 +139,7 @@ func collectUserInfo() error {
 		}
 
 		if err := graphqlClient.Query(context.Background(), &repositoryQueryResult, queryVariables); err != nil {
-			return err
+			return errors.New(err)
 		}
 
 		repositoryInfoResult.TotalDiskUsage = int(repositoryQueryResult.Viewer.Repositories.TotalDiskUsage)

@@ -3,6 +3,7 @@ package wakapi
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"github.com/go-errors/errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
@@ -52,25 +53,32 @@ func getUserIdMiddleware() gin.HandlerFunc {
 	getUserId := func() (string, error) {
 		if len(userId) > 0 { // 如果已经缓存了 userId, 则直接返回.
 			return userId, nil
-		} else if req, err := client.Get("summary"); err != nil {
-			return "", err
-		} else {
-			client.AppendQueryParams(req, url.Values{"interval": []string{"today"}})
-
-			if res, err := client.Send(req); err != nil {
-				return "", err
-			} else if str, err := client.ReadAsString(res); err != nil {
-				return "", err
-			} else {
-				var result map[string]any
-
-				if err := json.Unmarshal([]byte(str), &result); err != nil {
-					return "", err
-				} else {
-					return result["user_id"].(string), nil
-				}
-			}
 		}
+
+		req, err := client.Get("summary")
+		if err != nil {
+			return "", err
+		}
+
+		client.AppendQueryParams(req, url.Values{"interval": []string{"today"}})
+
+		res, err := client.Send(req)
+		if err != nil {
+			return "", err
+		}
+
+		str, err := client.ReadAsString(res)
+		if err != nil {
+			return "", err
+		}
+
+		var result map[string]any
+
+		if err := json.Unmarshal([]byte(str), &result); err != nil {
+			return "", errors.New(err)
+		}
+
+		return result["user_id"].(string), nil
 	}
 
 	return func(c *gin.Context) {

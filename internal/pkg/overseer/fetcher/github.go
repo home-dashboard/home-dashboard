@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"fmt"
+	"github.com/go-errors/errors"
 	"github.com/google/go-github/v50/github"
 	"github.com/samber/lo"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
@@ -46,7 +47,7 @@ func (c *client) GetLatestReleaseByETag(ctx context.Context, owner, repo string)
 
 	req, err := c.NewRequest("GET", u, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.New(err)
 	}
 
 	// 设置 If-None-Match 请求头.
@@ -65,7 +66,7 @@ func (c *client) GetLatestReleaseByETag(ctx context.Context, owner, repo string)
 		if resp != nil && resp.StatusCode == http.StatusNotModified {
 			return nil, resp, nil
 		} else {
-			return nil, nil, err
+			return nil, nil, errors.New(err)
 		}
 	} else {
 		// 获取 Last-Modified 响应头.
@@ -104,10 +105,10 @@ func (h *GitHubFetcher) Init() error {
 	}
 
 	if h.User == "" {
-		return fmt.Errorf("user required")
+		return errors.Errorf("user required")
 	}
 	if h.Repository == "" {
-		return fmt.Errorf("repo required")
+		return errors.Errorf("repo required")
 	}
 	if h.SelectAsset == nil {
 		h.SelectAsset = defaultSelectAsset
@@ -147,13 +148,13 @@ func (h *GitHubFetcher) Fetch(includeFile bool) (*AssetInfo, io.ReadCloser, Fetc
 	// 2 当前版本号大于等于 release 版本号
 	// 则不需要更新.
 	if !semver.IsValid(h.CurrentVersion) {
-		logger.Info("current version %s is invalid, not need to update", h.CurrentVersion)
+		logger.Info("current version %s is invalid, not need to update\n", h.CurrentVersion)
 		return nil, nil, nil, nil
 	} else if !semver.IsValid(assetInfo.Version) {
-		logger.Info("release version %s is invalid, not need to update", assetInfo.Version)
+		logger.Info("release version %s is invalid, not need to update\n", assetInfo.Version)
 		return nil, nil, nil, nil
 	} else if semver.Compare(h.CurrentVersion, assetInfo.Version) >= 0 {
-		logger.Info("current version %s, release version %s. no need to update", h.CurrentVersion, assetInfo.Version)
+		logger.Info("current version %s, release version %s. no need to update\n", h.CurrentVersion, assetInfo.Version)
 		return nil, nil, nil, nil
 	}
 
@@ -169,7 +170,7 @@ func (h *GitHubFetcher) Fetch(includeFile bool) (*AssetInfo, io.ReadCloser, Fetc
 	// 创建临时目录
 	tempDir, err := utils.CreateTempDir("fetch_from_github")
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, errors.New(err)
 	}
 	defer func() {
 		_ = os.RemoveAll(tempDir)
@@ -186,7 +187,7 @@ func (h *GitHubFetcher) Fetch(includeFile bool) (*AssetInfo, io.ReadCloser, Fetc
 
 	// 读取二进制文件
 	if file, err := utils.FileOpenOnlyFile(selectedFile); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, errors.New(err)
 	} else {
 		return assetInfo, file, func() {
 			h.CurrentVersion = assetInfo.Version
@@ -224,10 +225,10 @@ func (h *GitHubFetcher) findSelectedFile(tempDir string) (string, error) {
 		return nil
 	}
 	if err := filepath.WalkDir(tempDir, walkFunc); err != nil {
-		return "", err
+		return "", errors.New(err)
 	}
 	if selectedFile == "" {
-		return "", fmt.Errorf("no binary found in %s", tempDir)
+		return "", errors.Errorf("no binary found in %s", tempDir)
 	}
 	return selectedFile, nil
 }
@@ -236,7 +237,7 @@ func (h *GitHubFetcher) downloadAndExtractArchive(matchedAsset *github.ReleaseAs
 	// 创建临时文件
 	tempFile, err := utils.CreateTempFile(matchedAsset.GetName())
 	if err != nil {
-		return err
+		return errors.New(err)
 	}
 	defer func() {
 		_ = tempFile.Close()
@@ -246,14 +247,14 @@ func (h *GitHubFetcher) downloadAndExtractArchive(matchedAsset *github.ReleaseAs
 	downloadUrl := strings.Join([]string{lo.Ternary(h.GHProxy, "https://mirror.ghproxy.com/", ""), matchedAsset.GetBrowserDownloadURL()}, "")
 	req, err := http.NewRequest("GET", downloadUrl, nil)
 	if err != nil {
-		return err
+		return errors.New(err)
 	}
 	req = req.WithContext(context.Background())
 	req.Header.Set("Accept", "application/octet-stream")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return errors.New(err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -261,7 +262,7 @@ func (h *GitHubFetcher) downloadAndExtractArchive(matchedAsset *github.ReleaseAs
 
 	// 将下载的文件写入临时文件
 	if err := utils.CopyHttpResponseWithProgress(resp, tempFile, h.OnProgress); err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	//resp, err := os.Open("D:\\projects\\go_projects\\home-dashboard\\dist\\home-dashboard_1.2.0_Windows_x86_64.zip")
@@ -278,7 +279,7 @@ func (h *GitHubFetcher) downloadAndExtractArchive(matchedAsset *github.ReleaseAs
 
 	// 解压临时文件到临时目录
 	if err := utils.DecompressFile(tempFile.Name(), extractPath); err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	return nil

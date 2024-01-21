@@ -1,8 +1,8 @@
 package file_service
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-errors/errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/file_service"
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
 	"path/filepath"
@@ -12,7 +12,7 @@ var localFileService *file_service.LocalFileService
 
 func Get() (*file_service.LocalFileService, error) {
 	if localFileService == nil {
-		return nil, fmt.Errorf("file service is not initialized")
+		return nil, errors.Errorf("file service is not initialized")
 	}
 	return localFileService, nil
 }

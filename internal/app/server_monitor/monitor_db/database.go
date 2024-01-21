@@ -10,10 +10,10 @@ var logger = comfy_log.New("[monitor_db]")
 
 var database *gorm.DB
 
-func Initial(db *gorm.DB) {
+func Initial(db *gorm.DB) error {
 	database = db
 
-	if err := database.AutoMigrate(
+	return database.AutoMigrate(
 		&monitor_model.StoredSystemStat{},
 		&monitor_model.StoredSystemNetworkAdapterInfo{},
 		&monitor_model.StoredSystemDiskInfo{},
@@ -26,15 +26,12 @@ func Initial(db *gorm.DB) {
 		&monitor_model.ShortcutIcon{},
 		&monitor_model.ShortcutSectionItemUsage{},
 		&monitor_model.UserAgent{},
-	); err != nil {
-		logger.Fatal("auto generate table failed, %s\n", err)
-	}
-
+	)
 }
 
 func GetDB() *gorm.DB {
 	if database == nil {
-		logger.Panic("db is nil\n")
+		logger.Panic("database is not initialized\n use monitor_db.Initial(db *gorm.DB) to initialize database\n")
 	}
 
 	return database

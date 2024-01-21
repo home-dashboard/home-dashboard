@@ -21,11 +21,13 @@ func startFetchNotificationLoop(context context.Context) {
 	checkReadTimer := time.NewTimer(time.Minute * 10)
 
 	go func() {
+		logger.Info("start fetch notification loop")
+		defer logger.Info("stop fetch notification loop")
+
 		for {
 			select {
 			case <-context.Done():
 				timer.Stop()
-				logger.Info("stop fetch notification loop\n")
 				return
 			case <-timer.C:
 				var delay int64 = 30
@@ -147,8 +149,8 @@ func syncNotificationsUnreadState(notifications *[]*github.Notification) {
 }
 
 // getNotifications 获取最新获取的 GitHub 通知.
-func getCachedNotifications() *[]*github.Notification {
-	return &latestNotifications
+func getCachedNotifications() []*github.Notification {
+	return latestNotifications
 }
 
 func resetNotificationRequestHeader(c *gin.Context) {

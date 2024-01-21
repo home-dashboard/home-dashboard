@@ -13,21 +13,18 @@ var logger = comfy_log.New("notification")
 
 func StartListenUserNotificationNotify(context context.Context) {
 	go func() {
+		defer logger.Info("stop listen user notification notify\n")
+
 		var listener = notification.GetListener()
 		var listenerCh = listener.Ch()
-		defer func() {
-			listener.Close()
-			logger.Info("listener close complete\n")
-		}()
-
+		defer listener.Close()
 		for {
 			select {
 			case <-context.Done():
-				logger.Info("stop listen user notification notify\n")
 				return
 			case message, ok := <-listenerCh:
 				if !ok {
-					break
+					return
 				}
 
 				switch message.Type {

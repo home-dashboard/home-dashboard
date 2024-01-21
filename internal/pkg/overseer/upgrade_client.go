@@ -1,6 +1,7 @@
 package overseer
 
 import (
+	"github.com/go-errors/errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/overseer/fetcher"
 	"net/rpc"
 )
@@ -13,13 +14,14 @@ type upgradeServiceClient struct {
 
 func (c *upgradeServiceClient) Upgrade(fetcherName string) error {
 	var reply string
-	return c.Call(upgradeServiceName+".Upgrade", fetcherName, &reply)
+	err := c.Call(upgradeServiceName+".Upgrade", fetcherName, &reply)
+	return errors.New(err)
 }
 
 func (c *upgradeServiceClient) Status() (Status, error) {
 	var reply Status
 	if err := c.Call(upgradeServiceName+".Status", "", &reply); err != nil {
-		return Status{}, err
+		return Status{}, errors.New(err)
 	}
 
 	return reply, nil
@@ -28,7 +30,7 @@ func (c *upgradeServiceClient) Status() (Status, error) {
 func (c *upgradeServiceClient) LatestVersionInfo() (*fetcher.AssetInfo, error) {
 	var reply = fetcher.AssetInfo{}
 	if err := c.Call(upgradeServiceName+".LatestVersionInfo", "", &reply); err != nil {
-		return &fetcher.AssetInfo{}, err
+		return &fetcher.AssetInfo{}, errors.New(err)
 	}
 
 	return &reply, nil

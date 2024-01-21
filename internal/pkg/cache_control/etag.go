@@ -2,9 +2,11 @@ package cache_control
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/go-errors/errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
 	"io/fs"
+	"net/http"
 	"strings"
 )
 
@@ -32,7 +34,7 @@ func ETagMiddleware(fsys fs.FS) gin.HandlerFunc {
 		return nil
 	})
 	if err != nil {
-		eTagLogger.Error("init ETag store failed: %s\n", err.Error())
+		eTagLogger.Fatal("init ETag store failed: %w\n", errors.New(err))
 	} else {
 		eTagLogger.Info("init ETag store complete, %d files\n", fileCount)
 	}
@@ -49,7 +51,7 @@ func ETagMiddleware(fsys fs.FS) gin.HandlerFunc {
 
 		if requestETag := context.GetHeader("If-None-Match"); requestETag != "" {
 			if etag == requestETag {
-				context.AbortWithStatus(304)
+				context.AbortWithStatus(http.StatusNotModified)
 				return
 			}
 		}

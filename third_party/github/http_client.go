@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"github.com/go-errors/errors"
 	"github.com/google/go-github/v50/github"
 	"github.com/google/go-querystring/query"
 	"github.com/shurcooL/githubv4"
@@ -50,12 +51,12 @@ func addOptions(s string, opts interface{}) (string, error) {
 
 	u, err := url.Parse(s)
 	if err != nil {
-		return s, err
+		return s, errors.New(err)
 	}
 
 	qs, err := query.Values(opts)
 	if err != nil {
-		return s, err
+		return s, errors.New(err)
 	}
 
 	u.RawQuery = qs.Encode()
@@ -69,12 +70,12 @@ func (c *client) ListNotificationsByLastModified(ctx context.Context, opts *gith
 	u := "notifications"
 	u, err := addOptions(u, opts)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.New(err)
 	}
 
 	req, err := c.NewRequest("GET", u, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.New(err)
 	}
 
 	// 设置 If-Modified-Since 请求头.
@@ -87,7 +88,7 @@ func (c *client) ListNotificationsByLastModified(ctx context.Context, opts *gith
 	var notifications []*github.Notification
 	resp, err := c.Do(ctx, req, &notifications)
 	if err != nil {
-		return nil, resp, err
+		return nil, resp, errors.New(err)
 	}
 
 	// 获取 Last-Modified 响应头.

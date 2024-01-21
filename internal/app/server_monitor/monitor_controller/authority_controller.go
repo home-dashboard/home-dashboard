@@ -20,17 +20,27 @@ type AuthorizeRequest struct {
 	Password string `form:"password"`
 }
 
+// Authorize 登录并创建 session
+// @Summary 登录并创建 session
+// @Description 登录并创建 session. 如果用户开启了 2FA, 则将 [authority.TotpValidatedKey] 设置为 false.
+// @Tags 登录
+// @Accept json
+// @Produce json
+// @Param username body string true "username"
+// @Param password body string true "password"
+// @Success 200 {string} string "OK"
+// @Router /auth [post]
 func Authorize(context *gin.Context) {
 	var body AuthorizeRequest
 
 	if err := context.ShouldBindJSON(&body); err != nil {
-		_ = context.AbortWithError(http.StatusBadRequest, err)
+		respondEntityValidationError(context, err.Error())
 		return
 	}
 
 	user, err := monitor_service.GetUserByName(body.Username)
 	if err != nil || user.Password != body.Password {
-		_ = context.AbortWithError(http.StatusUnauthorized, comfy_errors.NewResponseError(comfy_errors.LoginRequestError, "username or password invalid"))
+		respondLoginError(context, "username or password invalid")
 		return
 	}
 
@@ -48,8 +58,8 @@ func Authorize(context *gin.Context) {
 	})
 
 	if err := session.Save(); err != nil {
-		_ = context.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
-		logger.Info("save session failed, %s\n", err)
+		abortWithError(context, http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed. %w", err))
+		return
 	}
 
 	context.JSON(http.StatusOK, gin.H{
@@ -60,6 +70,13 @@ func Authorize(context *gin.Context) {
 }
 
 // Unauthorize 登出并删除 session
+// @Summary 登出并删除 session
+// @Description 登出并删除 session
+// @Tags 登出
+// @Accept json
+// @Produce json
+// @Success 200 {string} string "OK"
+// @Router /unauth [delete]
 func Unauthorize(context *gin.Context) {
 	session := sessions.Default(context)
 
@@ -73,7 +90,7 @@ func Unauthorize(context *gin.Context) {
 	session.Options(sessions.Options{MaxAge: -1})
 
 	if err := session.Save(); err != nil {
-		_ = context.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
+		abortWithError(context, http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
 		logger.Info("save session failed, %s\n", err)
 	}
 
@@ -85,11 +102,13 @@ func GetCurrentUser(c *gin.Context) {
 	user := session.Get(authority.InfoKey).(authority.User)
 
 	if len(user.Username) <= 0 {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "current user not found"))
+		respondUnknownError(c, "current user not found")
+		return
 	}
 
 	if storedUser, err := monitor_service.GetUserByName(user.Username); err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.UnknownError, "cannot get current user. %w", err))
+		respondUnknownError(c, "cannot get current user. %w", err)
+		return
 	} else {
 		// 移除敏感信息
 		storedUser.Password = ""
@@ -106,7 +125,8 @@ func Disable2FA(c *gin.Context) {
 
 	storedUser, err := monitor_service.GetUserByName(user.Username)
 	if err != nil {
-		_ = c.AbortWithError(http.StatusUnauthorized, err)
+		respondLoginError(c, "cannot get current user. %w", err)
+		return
 	}
 
 	if storedUser.Enable2FA == false {
@@ -115,8 +135,9 @@ func Disable2FA(c *gin.Context) {
 
 	storedUser.Enable2FA = false
 	storedUser.Secret2FA = ""
-	if err := monitor_service.UpdateUser(*storedUser); err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.UnknownError, "cannot update user. %w", err))
+	if err := monitor_service.UpdateUser(storedUser); err != nil {
+		abortWithError(c, http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.UnknownError, "cannot update user. %w", err))
+		return
 	}
 
 	// 禁用 2FA 后, 需要重新登录
@@ -131,7 +152,7 @@ type Validate2FARequest struct {
 func Validate2FA(c *gin.Context) {
 	var body Validate2FARequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
+		respondLoginError(c, err.Error())
 		return
 	}
 
@@ -140,7 +161,8 @@ func Validate2FA(c *gin.Context) {
 
 	storedUser, err := monitor_service.GetUserByName(user.Username)
 	if err != nil {
-		_ = c.AbortWithError(http.StatusUnauthorized, err)
+		respondLoginError(c, "cannot get current user. %w", err)
+		return
 	}
 
 	// 校验 2FA 验证码, 如果正确, 将 session 中的 [authority.TotpValidatedKey] 设置为 true.
@@ -148,7 +170,8 @@ func Validate2FA(c *gin.Context) {
 		session.Set(authority.TotpValidatedKey, true)
 		saveSession(c, session)
 	} else {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.LoginRequestError, "2fa code invalid"))
+		respondLoginError(c, "2fa code invalid")
+		return
 	}
 }
 
@@ -156,7 +179,7 @@ func Validate2FA(c *gin.Context) {
 func Binding2FAByAuthenticatorApp(c *gin.Context) {
 	var body Validate2FARequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
+		respondLoginError(c, err.Error())
 		return
 	}
 
@@ -167,20 +190,23 @@ func Binding2FAByAuthenticatorApp(c *gin.Context) {
 	if authority.TOTP.Validate(body.Code, user.Secret2FA) {
 		storedUser, err := monitor_service.GetUserByName(user.Username)
 		if err != nil {
-			_ = c.AbortWithError(http.StatusUnauthorized, err)
+			respondLoginError(c, err.Error())
+			return
 		}
 
 		// 更新 Secret2FA
 		storedUser.Secret2FA = user.Secret2FA
 		storedUser.Enable2FA = true
-		if err := monitor_service.UpdateUser(*storedUser); err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.UnknownError, "cannot update user. %w", err))
+		if err := monitor_service.UpdateUser(storedUser); err != nil {
+			abortWithError(c, http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.UnknownError, "cannot update user. %w", err))
+			return
 		}
 
 		// 绑定成功后, 重新登录
 		Unauthorize(c)
 	} else {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.LoginRequestError, "2fa code invalid"))
+		respondLoginError(c, "2fa code invalid")
+		return
 	}
 }
 
@@ -192,13 +218,15 @@ func Generate2FABindingQRCode(c *gin.Context) {
 
 	qrCode, secret, err := authority.TOTP.GenerateBindingQRCode(user.Username)
 	if err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.UnknownError, "generate qr code failed"))
+		respondUnknownError(c, "generate qr code failed")
+		return
 	}
 
 	var buffer bytes.Buffer
 
 	if err := png.Encode(&buffer, qrCode); err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.UnknownError, "generate qr code failed"))
+		respondUnknownError(c, "generate qr code failed")
+		return
 	} else {
 		// 临时保存 secret, 用于校验 2FA 验证码
 		user.Secret2FA = secret
@@ -211,7 +239,7 @@ func Generate2FABindingQRCode(c *gin.Context) {
 
 func saveSession(c *gin.Context, session sessions.Session) {
 	if err := session.Save(); err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
-		logger.Info("save session failed, %s\n", err)
+		abortWithError(c, http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
+		return
 	}
 }

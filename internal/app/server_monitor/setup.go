@@ -6,10 +6,10 @@ import (
 	"github.com/gin-contrib/gzip"
 	ginSessions "github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/go-errors/errors"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/file_service"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_controller"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
-	"github.com/siaikin/home-dashboard/internal/app/server_monitor/notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
@@ -23,10 +23,10 @@ import (
 
 func setupEngine(mock bool) *gin.Engine {
 	r := gin.Default()
-	if err := r.SetTrustedProxies(nil); err != nil {
-		logger.Info("server set proxy failed, %s\n", err)
-		return nil
-	}
+	//if err := r.SetTrustedProxies(nil); err != nil {
+	//	logger.Info("server set proxy failed, %s\n", err)
+	//	return nil
+	//}
 
 	r.Use(gzip.Gzip(gzip.DefaultCompression))
 	r.Use(sessions.GetSessionMiddleware())
@@ -40,43 +40,53 @@ func setupEngine(mock bool) *gin.Engine {
 		if errSize > 0 {
 			err := errs[errSize-1]
 
-			switch err.Err.(type) {
-			case comfy_errors.ResponseError:
-				resErr := err.Err.(comfy_errors.ResponseError)
+			var responseError comfy_errors.ResponseError
+			if errors.As(err.Err, &responseError) {
+				logger.Error("\n%s\n", responseError.ErrorStack())
 
 				_ = err.SetMeta(map[string]interface{}{
-					"code":    resErr.Code,
-					"message": resErr.Error(),
+					"code":    responseError.Code,
+					"message": responseError.Err.Error(),
 				})
-			default:
 			}
 
 			c.JSON(c.Writer.Status(), err)
 		}
 	})
 
-	r.Use(func(c *gin.Context) {
-		c.Next()
-
-		session := ginSessions.Default(c)
-
-		if err := session.Save(); err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
-			logger.Info("save session failed, %s\n", err)
-		}
-	})
+	//r.Use(func(c *gin.Context) {
+	//	c.Next()
+	//
+	//	session := ginSessions.Default(c)
+	//
+	//	if err := session.Save(); err != nil {
+	//		_ = c.AbortWithError(http.StatusInternalServerError, comfy_errors.NewResponseError(comfy_errors.SessionStoreError, "session save failed"))
+	//		logger.Info("save session failed, %s\n", err)
+	//	}
+	//})
 
 	if mock {
-		logger.Info("server starting mock mode\n")
+		logger.Warn("server starting development mode\n")
 
+		allowMethods := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+		allowHeaders := []string{"Origin", "Content-Length", "Content-Type", "x-requested-with"}
+		allowCredentials := true
+		maxAge := time.Hour * 12
+		allowOrigins := configuration.Get().ServerMonitor.Development.Cors.AllowOrigins
 		r.Use(cors.New(cors.Config{
-			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
-			AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "x-requested-with"},
-			AllowCredentials: true,
-			MaxAge:           12 * time.Hour,
-			AllowOrigins:     configuration.Get().ServerMonitor.Development.Cors.AllowOrigins,
+			AllowMethods:     allowMethods,
+			AllowHeaders:     allowHeaders,
+			AllowCredentials: allowCredentials,
+			MaxAge:           maxAge,
+			AllowOrigins:     allowOrigins,
 		}))
-
+		logger.Warn(`
+			allow origins: %v
+			allow methods: %v
+			allow headers: %v
+			allow credentials: %v
+			max age: %v
+`, allowOrigins, allowMethods, allowHeaders, allowCredentials, maxAge)
 	}
 
 	return r
@@ -89,11 +99,13 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 			session := ginSessions.Default(context)
 
 			if session.Get(authority.InfoKey) == nil {
-				if user, err := monitor_service.GetUserByName(configuration.Get().ServerMonitor.Administrator.Username); err != nil {
+				user, err := monitor_service.GetUserByName(configuration.Get().ServerMonitor.Administrator.Username)
+				if err != nil {
 					_ = context.AbortWithError(http.StatusUnauthorized, comfy_errors.NewResponseError(comfy_errors.LoginRequestError, "auto login failed, %w", err))
-				} else {
-					session.Set(authority.InfoKey, user.User)
+					return
 				}
+
+				session.Set(authority.InfoKey, user.User)
 
 				context.Next()
 
@@ -135,9 +147,9 @@ func setupRouter(router *gin.RouterGroup, mock bool) {
 	// 该路由组下的接口需要登录且 2FA 校验通过(如果 2FA 开启)
 	authorizedAnd2faValidated := authorized.Group("", authority.Authorize2FAMiddleware())
 
-	authorizedAnd2faValidated.GET("notification", notification.Notification)
-	authorizedAnd2faValidated.POST("notification/collect", notification.ModifyCollectStat)
-	authorizedAnd2faValidated.GET("notification/collect", notification.GetCollectStat)
+	authorizedAnd2faValidated.GET("notification", monitor_controller.Notification)
+	authorizedAnd2faValidated.POST("notification/collect", monitor_controller.ModifyCollectStat)
+	authorizedAnd2faValidated.GET("notification/collect", monitor_controller.GetCollectStat)
 	authorizedAnd2faValidated.GET("info/device", monitor_controller.DeviceInfo)
 
 	// 通知消息相关的接口
@@ -191,28 +203,28 @@ func startServer(listener *net.Listener, mock bool) error {
 
 	// 启用文件服务
 	if err := file_service.Serve(engine.Group("/v1/file")); err != nil {
-		logger.Fatal("file service start failed, %s.\n", err)
+		return errors.Errorf("file service start failed, %w\n", err)
 	}
 
 	// 嵌入 home-dashboard-web-ui 静态资源
 	if err := web_submodules.EmbedHomeDashboardWebUI(engine); err != nil {
-		logger.Fatal("embed home-dashboard-web-ui failed, %s\n", err)
+		return errors.Errorf("embed home-dashboard-web-ui failed, %w\n", err)
 	}
 
 	server = &http.Server{
 		Handler: engine,
 	}
-
-	logger.Info("serving on port %s\n", server.Addr)
 	return server.Serve(*listener)
 }
 
-func stopServer(ctx context.Context) {
+func stopServer(ctx context.Context) error {
 	if err := server.Shutdown(ctx); err != nil {
-		logger.Error("server forced to shutdown: %v\n", err)
+		return errors.Errorf("server shutdown failed, %w\n", err)
 	}
 
 	if err := third_party.Unload(); err != nil {
-		logger.Error("third party service stop failed, %v\n", err)
+		return errors.Errorf("third party service stop failed, %w\n", err)
 	}
+
+	return nil
 }

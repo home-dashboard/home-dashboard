@@ -3,7 +3,6 @@ package monitor_controller
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_service"
-	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
 	"net/http"
 )
 
@@ -13,7 +12,7 @@ type ConfigurationRequest struct {
 func GetChangedConfiguration(c *gin.Context) {
 	configs, err := monitor_service.LatestNConfiguration(2)
 	if err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+		respondUnknownError(c, err.Error())
 		return
 	}
 

@@ -27,9 +27,9 @@ func creteTempFile() (*os.File, error) {
 // [Download and replace running EXE]: https://www.codeproject.com/Questions/621666/Download-and-replace-running-EXE
 func replaceExecutableFile(newFilePath, oldFilePath string) error {
 	if err := utils.Move(oldFilePath, oldFilePath+".old"); err != nil {
-		return err
+		return errors.New(err)
 	} else if err := utils.Move(newFilePath, oldFilePath); err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	return nil
@@ -62,11 +62,11 @@ func sendTerminalSignal(proc *os.Process) error {
 
 	p, err := dll.FindProc("GenerateConsoleCtrlEvent")
 	if err != nil {
-		return err
+		return errors.New(err)
 	}
 	r, _, err := p.Call(syscall.CTRL_BREAK_EVENT, uintptr(proc.Pid))
 	if r == 0 {
-		return err
+		return errors.New(err)
 	}
 
 	return nil

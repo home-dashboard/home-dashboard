@@ -3,6 +3,7 @@ package overseer
 import (
 	"fmt"
 	"github.com/dustin/go-humanize"
+	"github.com/go-errors/errors"
 	"github.com/samber/lo"
 	"github.com/siaikin/home-dashboard/internal/pkg/overseer/fetcher"
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
@@ -29,7 +30,7 @@ type manager struct {
 
 // Initial 将初始化 manager, 并开始检查更新.
 func (m *manager) Initial(ctx context.Context) error {
-	logger.Info("initializing manager")
+	logger.Info("initializing manager\n")
 
 	// 设置初始状态值
 	m.status = newStatus(StatusTypeRunning)
@@ -39,7 +40,7 @@ func (m *manager) Initial(ctx context.Context) error {
 	}
 
 	// 启动时运行一次 worker
-	logger.Info("running worker for the first time")
+	logger.Info("running worker for the first time\n")
 	if err := m.runWorker(ctx); err != nil {
 		return err
 	}
@@ -47,7 +48,7 @@ func (m *manager) Initial(ctx context.Context) error {
 	// 检查版本更新
 	go m.checkNewVersions(ctx)
 
-	logger.Info("manager initialized")
+	logger.Info("manager initialized\n")
 
 	return nil
 }
@@ -76,7 +77,7 @@ func (m *manager) Destroy(ctx context.Context) {
 func (m *manager) setBinaryInfo() error {
 	path, err := os.Executable()
 	if err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	// 获取当前进程的二进制文件的路径
@@ -84,14 +85,14 @@ func (m *manager) setBinaryInfo() error {
 
 	// 获取当前进程的二进制文件的 hash 值
 	if hash, err := utils.MD5File(path); err != nil {
-		return err
+		return errors.New(err)
 	} else {
 		m.BinHash = hash
 	}
 
 	// 获取当前进程的二进制文件的权限
 	if info, err := os.Stat(path); err != nil {
-		return err
+		return errors.New(err)
 	} else {
 		m.BinPermissions = info.Mode()
 	}
@@ -137,13 +138,13 @@ func (m *manager) checkNewVersions(ctx context.Context) {
 func (m *manager) runWorker(ctx context.Context) error {
 	path, err := os.Executable()
 	if err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	extendedEnv := os.Environ()
 	hash, err := utils.MD5File(path)
 	if err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	// hash 取最后 8 位, 用于子进程启动时校验二进制文件.
@@ -163,7 +164,7 @@ func (m *manager) runWorker(ctx context.Context) error {
 
 	// 启动子进程
 	if err := cmd.Start(); err != nil {
-		return err
+		return errors.New(err)
 	}
 	logger.Info("worker started")
 
@@ -264,13 +265,13 @@ func (m *manager) upgrade(ctx context.Context, fetcherName string) error {
 		return f.GetName() == fetcherName
 	})
 	if !ok {
-		return fmt.Errorf("fetcher %s not found", fetcherName)
+		return errors.Errorf("fetcher %s not found", fetcherName)
 	}
 
 	// 目前仅支持 fetcher.GitHubFetcher
 	_f, ok := f.(*fetcher.GitHubFetcher)
 	if !ok {
-		return fmt.Errorf("fetcher %s not support upgrade", _f.GetName())
+		return errors.Errorf("fetcher %s not support upgrade", _f.GetName())
 	}
 
 	// 覆盖原有的 OnProgress 回调, 用于更新状态文本
@@ -302,7 +303,7 @@ func (m *manager) upgrade(ctx context.Context, fetcherName string) error {
 
 	tempFile, err := creteTempFile()
 	if err != nil {
-		return err
+		return errors.New(err)
 	}
 	defer func() {
 		_ = tempFile.Close()
@@ -312,13 +313,13 @@ func (m *manager) upgrade(ctx context.Context, fetcherName string) error {
 	// 将新版本写入临时文件
 	logger.Info("[upgrade] writing new version to temp file")
 	if _, err := io.Copy(tempFile, reader); err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	// 比较新版本的 hash 值和当前进程的 hash 值, 如果相同, 则跳过.
 	hash, err := utils.MD5File(tempFile.Name())
 	if err != nil {
-		return err
+		return errors.New(err)
 	}
 	if hash == m.BinHash {
 		logger.Info("[upgrade] hash equal, no new version")
@@ -327,28 +328,28 @@ func (m *manager) upgrade(ctx context.Context, fetcherName string) error {
 
 	// 继承权限
 	if err := tempFile.Chmod(m.BinPermissions); err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	// 继承 uid, gid
 	if err := chown(tempFile, uid, gid); err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	if err := m.Config.OnBeforeUpgrade(); err != nil {
 		logger.Warn("[upgrade] canceled by OnBeforeUpgrade")
-		return err
+		return errors.New(err)
 	}
 
 	// 关闭临时文件, 避免冲突.
 	if err := tempFile.Close(); err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	// 替换可执行文件.
 	logger.Info("[upgrade] replacing executable file...")
 	if err := replaceExecutableFile(tempFile.Name(), m.BinPath); err != nil {
-		return err
+		return errors.New(err)
 	}
 	logger.Info("[upgrade] replaced executable file, upgrading...")
 
@@ -356,7 +357,7 @@ func (m *manager) upgrade(ctx context.Context, fetcherName string) error {
 
 	// 重启子进程
 	if err := m.restartWorker(ctx); err != nil {
-		return fmt.Errorf("upgrade worker failed: %w", err)
+		return errors.Errorf("upgrade worker failed: %w", err)
 	}
 	logger.Info("[upgrade] worker upgraded")
 

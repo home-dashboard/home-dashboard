@@ -15,7 +15,7 @@ func load(context context.Context, router *gin.RouterGroup) error {
 
 	// 校验参数
 	if !githubConfig.Enable {
-		return comfy_errors.NewResponseError(comfy_errors.UnknownError, "third party service are used, but not enabled in configuration file")
+		return comfy_errors.NewResponseError(comfy_errors.UnknownError, "load failed, not enabled in configuration file")
 	} else if len(githubConfig.PersonalAccessToken) <= 0 {
 		return comfy_errors.NewResponseError(comfy_errors.UnknownError, "personal access token is empty")
 	}
@@ -41,9 +41,6 @@ func unload() error {
 
 func dispatchEvent(event internal.ThirdPartyEvent) error {
 	switch event.GetType() {
-	case internal.NotificationChannelConnectedEventType:
-		//sendNotifications(getCachedNotifications())
-		return nil
 	case internal.UserNotificationMarkedAsReadEventType:
 		data := event.GetData().(internal.UserNotificationMarkedAsReadEventData)
 		return markNotificationAsRead(data.Notification.UniqueId)

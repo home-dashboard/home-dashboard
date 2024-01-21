@@ -2,7 +2,7 @@ package monitor_controller
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/siaikin/home-dashboard/internal/pkg/comfy_errors"
+	"github.com/go-errors/errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/notification"
 	"github.com/siaikin/home-dashboard/internal/pkg/overseer"
 	"github.com/siaikin/home-dashboard/internal/pkg/verison_info"
@@ -29,7 +29,7 @@ func Upgrade(context *gin.Context) {
 	body := UpgradeRequest{}
 
 	if err := context.ShouldBindJSON(&body); err != nil {
-		_ = context.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+		respondUnknownError(context, err.Error())
 		return
 	}
 
@@ -40,12 +40,12 @@ func Upgrade(context *gin.Context) {
 	var inst *overseer.Overseer
 	var err error
 	if inst, err = overseer.Get(); err != nil {
-		logger.Error("overseer get failed. %v\n", err)
+		abortWithError(context, http.StatusInternalServerError, errors.Errorf("overseer get failed. %w", err))
 		return
 	}
 
 	if err := inst.Upgrade(body.FetcherName); err != nil {
-		logger.Error("upgrade failed. %v\n", err)
+		abortWithError(context, http.StatusInternalServerError, errors.Errorf("upgrade failed. %w", err))
 		return
 	}
 
@@ -75,7 +75,7 @@ func Upgrade(context *gin.Context) {
 	}()
 }
 
-// Version
+// Version 获取版本信息
 // @Summary Version
 // @Description Version
 // @Tags Version
