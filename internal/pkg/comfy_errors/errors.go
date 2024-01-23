@@ -1,9 +1,11 @@
 package comfy_errors
 
-import "encoding/json"
+import (
+	"github.com/go-errors/errors"
+)
 
 type ComfyError struct {
-	Err comfyError `json:"err"`
+	comfyError
 }
 
 func (e ComfyError) String() string {
@@ -11,22 +13,14 @@ func (e ComfyError) String() string {
 }
 
 func (e ComfyError) Error() string {
-	return e.String()
-}
-
-func (e ComfyError) JSON() ([]byte, error) {
-	return json.Marshal(e)
-}
-
-func (e ComfyError) Unwrap() error {
-	return e.Err
+	return e.Err.Error()
 }
 
 type comfyError struct {
-	error
+	*errors.Error
 }
 
 // MarshalText 实现了 [encoding.TextMarshaler] 接口
 func (e comfyError) MarshalText() ([]byte, error) {
-	return []byte(e.Error()), nil
+	return []byte(e.ErrorStack()), nil
 }

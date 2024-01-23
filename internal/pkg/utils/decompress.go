@@ -4,8 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
-	"errors"
-	"fmt"
+	"github.com/go-errors/errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -256,26 +255,26 @@ func extractZipPart(file *zip.File, destinationDir string) error {
 func validateAndPrepareDecompressArgs(source string, destinationDir string) error {
 	// 判断源文件和目标目录是否相同
 	if filepath.Dir(source) == destinationDir {
-		return fmt.Errorf("source and destination are the same")
+		return errors.Errorf("source and destination are the same")
 	}
 
 	stat, err := os.Stat(source)
 	// 判断源文件是否存在
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("source file %s does not exist", source)
+			return errors.Errorf("source file %s does not exist", source)
 		} else {
 			return err
 		}
 	}
 	if stat.IsDir() {
-		return fmt.Errorf("source file is a directory")
+		return errors.Errorf("source file is a directory")
 	}
 
 	// 校验文件扩展名
 	ext := filepath.Ext(source)
 	if len(ext) <= 0 {
-		return fmt.Errorf("file %s has no extension", source)
+		return errors.Errorf("file %s has no extension", source)
 	}
 
 	// 创建目标目录

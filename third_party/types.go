@@ -21,9 +21,9 @@ func (e thirdPartyEventImpl) GetData() any {
 }
 
 // newThirdPartyEvent 创建一个新的基础第三方事件.
-func newThirdPartyEvent(_type string, data any) thirdPartyEventImpl {
+func newThirdPartyEvent(evType string, data any) thirdPartyEventImpl {
 	return thirdPartyEventImpl{
-		Type: _type,
+		Type: evType,
 		Data: data,
 	}
 }

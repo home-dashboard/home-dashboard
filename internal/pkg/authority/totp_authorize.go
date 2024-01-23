@@ -1,6 +1,7 @@
 package authority
 
 import (
+	"github.com/go-errors/errors"
 	"github.com/pquerna/otp/totp"
 	"image"
 )
@@ -15,9 +16,9 @@ func (t *tOtp) GenerateBindingQRCode(username string) (image.Image, string, erro
 		Issuer:      "home-dashboard",
 		AccountName: username,
 	}); err != nil {
-		return nil, "", err
+		return nil, "", errors.New(err)
 	} else if qrCode, err := key.Image(128, 128); err != nil {
-		return nil, "", err
+		return nil, "", errors.New(err)
 	} else {
 		return qrCode, key.Secret(), nil
 	}

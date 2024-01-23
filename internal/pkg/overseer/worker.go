@@ -1,7 +1,7 @@
 package overseer
 
 import (
-	"fmt"
+	"github.com/go-errors/errors"
 	psuProc "github.com/shirou/gopsutil/v3/process"
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
 	"golang.org/x/net/context"
@@ -39,7 +39,7 @@ func (w worker) Initial(ctx context.Context) error {
 
 	path, err := os.Executable()
 	if err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	// 获取当前进程的二进制文件的路径
@@ -47,30 +47,30 @@ func (w worker) Initial(ctx context.Context) error {
 
 	// 获取当前进程的二进制文件的 hash 值
 	if hash, err := utils.MD5File(path); err != nil {
-		return err
+		return errors.New(err)
 	} else {
 		w.BinHash = hash
 	}
 
 	envShortHash := os.Getenv(envShortBinHash)
 	if len(envShortHash) <= 0 {
-		return fmt.Errorf("env short hash %s is empty", envShortBinHash)
+		return errors.Errorf("env short hash %s is empty", envShortBinHash)
 	} else if envShortHash != w.BinHash[len(w.BinHash)-8:] {
-		return fmt.Errorf("hash mismatch: %s != %s", envShortHash, w.BinHash[len(w.BinHash)-8:])
+		return errors.Errorf("hash mismatch: %s != %s", envShortHash, w.BinHash[len(w.BinHash)-8:])
 	}
 
 	managerProc, err := psuProc.NewProcess(int32(os.Getpid()))
 	if running, err := managerProc.IsRunning(); running != true || err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	// windows 不支持进程间信号通知.
 	//// 通知 manager, worker 已经初始化完成
 	//logger.Info("notifying manager that worker is ready")
 	//if managerProcess, err := os.FindProcess(int(managerProc.Pid)); err != nil {
-	//	return fmt.Errorf("failed to find manager process: %w", err)
+	//	return errors.Errorf("failed to find manager process: %w", err)
 	//} else if err := managerProcess.Signal(InitialCompleteSignal); err != nil {
-	//	return fmt.Errorf("failed to signal manager: %w", err)
+	//	return errors.Errorf("failed to signal manager: %w", err)
 	//}
 	//
 	//// 等待 manager 发送接管信号
@@ -82,7 +82,7 @@ func (w worker) Initial(ctx context.Context) error {
 	// 监听 Config.Addresses 中指定的网络地址
 	logger.Info("get take over signal, listening on addresses")
 	if listeners, err := utils.ListenTCPAddresses(w.Config.Addresses...); err != nil {
-		return err
+		return errors.New(err)
 	} else {
 		w.listeners = listeners
 	}
@@ -93,7 +93,7 @@ func (w worker) Initial(ctx context.Context) error {
 	// 启动 Config.Program, 并保存返回的退出回调函数.
 	logger.Info("starting program")
 	if err := w.Program(ProgramProps{Listeners: w.listeners}); err != nil {
-		return err
+		return errors.New(err)
 	}
 
 	logger.Info("worker initialized")

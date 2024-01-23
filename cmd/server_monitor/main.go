@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
+	"github.com/go-errors/errors"
 	"github.com/samber/lo"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
@@ -74,11 +74,13 @@ func main() {
 			logger.Fatal("current process is not worker process\n")
 		}
 
-		server_monitor.Initial(db)
+		if err := server_monitor.Initial(db); err != nil {
+			return err
+		}
 
 		listeners := props.Listeners
 		if len(listeners) <= 0 {
-			return fmt.Errorf("no listeners")
+			return errors.Errorf("no listeners")
 		}
 
 		server_monitor.Start(context.Background(), &listeners[0])

@@ -2,7 +2,7 @@ package server_monitor
 
 import (
 	"context"
-	"errors"
+	"github.com/go-errors/errors"
 	"github.com/jinzhu/copier"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
@@ -21,28 +21,37 @@ import (
 
 var logger = comfy_log.New("[server_monitor]")
 
-func Initial(db *gorm.DB) {
-	monitor_db.Initial(db)
+func Initial(db *gorm.DB) error {
+	if err := monitor_db.Initial(db); err != nil {
+		return err
+	}
 
+	logger.Info("initial device table...\n")
 	if err := initialDeviceTable(); err != nil {
-		panic(err)
+		return err
 	}
 
+	logger.Info("generate administrator user...\n")
 	if err := generateAdministratorUser(); err != nil {
-		panic(err)
+		return err
 	}
 
+	logger.Info("store latest configuration...\n")
 	if err := storeLatestConfiguration(); err != nil {
-		panic(err)
+		return err
 	}
 
+	logger.Info("generate default shortcut section...\n")
 	if err := generateDefaultShortcutSection(); err != nil {
-		panic(err)
+		return err
 	}
 
+	logger.Info("fetch user agent list...\n")
 	if err := fetchUserAgent(); err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 func Start(ctx context.Context, listener *net.Listener) {
@@ -53,16 +62,19 @@ func Start(ctx context.Context, listener *net.Listener) {
 	go func() {
 		if err := startServer(listener, configuration.Get().ServerMonitor.Development.Enable); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
-				logger.Info("err: %v, don't worry, it's normal\n", err)
+				logger.Info("normal shutdown\n")
 			} else {
-				logger.Fatal("start server failed, %w\n", err)
+				logger.Fatal("start server failed, %w\n", errors.New(err))
 			}
 		}
 	}()
 }
 
 func Stop(ctx context.Context) {
-	stopServer(ctx)
+	if err := stopServer(ctx); err != nil {
+		logger.Warn("stop server failed, but whatever, %w\n", errors.New(err))
+	}
+
 }
 
 func initialDeviceTable() error {
@@ -85,8 +97,7 @@ func initialDeviceTable() error {
 	for _, v := range systemStat.Cpu {
 		cpuInfo := monitor_model.StoredSystemCpuInfo{}
 		if err := copier.Copy(&cpuInfo, &v.InfoStat); err != nil {
-			logger.Info("copy failed, %s\n", err)
-			return err
+			return errors.Errorf("copy failed, %w", err)
 		}
 
 		db.Where(map[string]interface{}{"CPU": cpuInfo.CPU}).Attrs(cpuInfo).FirstOrCreate(&cpuInfo)
@@ -95,8 +106,7 @@ func initialDeviceTable() error {
 	for _, v := range systemStat.Disk {
 		diskInfo := monitor_model.StoredSystemDiskInfo{}
 		if err := copier.Copy(&diskInfo, &v.PartitionStat); err != nil {
-			logger.Info("copy failed, %s\n", err)
-			return err
+			return errors.Errorf("copy failed, %w", err)
 		}
 
 		db.Where(map[string]interface{}{"Mountpoint": diskInfo.Mountpoint}).Attrs(diskInfo).FirstOrCreate(&diskInfo)
@@ -106,33 +116,40 @@ func initialDeviceTable() error {
 }
 
 // 从配置文件中的管理员配置中生成管理员账号.
+// 如果数据库中已存在管理员账号, 则检查账号密码是否一致, 不一致则删除账号并重新创建管理员账号.
 func generateAdministratorUser() error {
 	administrator := configuration.Get().ServerMonitor.Administrator
 
-	user, err := monitor_service.GetUser(monitor_model.User{Role: monitor_model.RoleAdministrator})
-
-	// 管理员账号密码不一致则删除账号并重新创建管理员账号
-	if err == nil && (user.Username != administrator.Username || user.Password != administrator.Password) {
-		if err := monitor_service.DeleteUser(*user); err != nil {
-			return err
-		}
-
-		// 给 err 赋值以进入账号创建分支
-		err = errors.New("")
+	if len(administrator.Password) <= 0 || len(administrator.Username) <= 0 {
+		return errors.Errorf("administrator username or password is empty. please check config file")
 	}
 
-	if err != nil {
-		adminUser := monitor_model.User{
-			User: authority.User{
-				Username: administrator.Username,
-				Password: administrator.Password,
-			},
-			Role: monitor_model.RoleAdministrator,
-		}
+	user, err := monitor_service.GetUser(monitor_model.User{Role: monitor_model.RoleAdministrator})
+	if err != nil && !errors.Is(err, monitor_service.ErrorNotFound) {
+		return err
+	}
 
-		if err := monitor_service.CreateUser(adminUser); err != nil {
-			return err
+	if user.Username == administrator.Username && user.Password == administrator.Password {
+		return nil
+	}
+
+	if !errors.Is(err, monitor_service.ErrorNotFound) {
+		// 管理员账号密码不一致则删除账号并重新创建管理员账号
+		if err := monitor_service.DeleteUser(user); err != nil {
+			return errors.New(err)
 		}
+	}
+
+	adminUser := monitor_model.User{
+		User: authority.User{
+			Username: administrator.Username,
+			Password: administrator.Password,
+		},
+		Role: monitor_model.RoleAdministrator,
+	}
+
+	if err := monitor_service.CreateUser(adminUser); err != nil {
+		return err
 	}
 
 	return nil
@@ -142,9 +159,13 @@ func generateAdministratorUser() error {
 func storeLatestConfiguration() error {
 	currentConfig := configuration.Get()
 
-	if config, err := monitor_service.LatestConfiguration(); err != nil {
+	config, err := monitor_service.LatestConfiguration()
+	if err != nil {
 		return err
-	} else if config != nil && config.Configuration.ModificationTime == currentConfig.ModificationTime { // 记录条数为 0 或配置文件未修改时跳过
+	}
+
+	// ModificationTime 相同时认为配置文件未更新
+	if config.Configuration.ModificationTime == currentConfig.ModificationTime {
 		return nil
 	}
 
@@ -176,14 +197,19 @@ func generateDefaultShortcutSection() error {
 	return nil
 }
 
-// 启动时拉取 userAgent 列表, 并存储到数据库中
+// 第一次启动时拉取 userAgent 列表, 并存储到数据库中
 func fetchUserAgent() error {
-	if count, err := monitor_service.CountUserAgent(monitor_model.UserAgent{}); err != nil {
+	count, err := monitor_service.CountUserAgent(monitor_model.UserAgent{})
+	if err != nil {
 		return err
-	} else if count <= 0 {
-		if err := monitor_service.RefreshUserAgent(); err != nil {
-			return err
-		}
+	}
+
+	if count > 0 {
+		return nil
+	}
+
+	if err := monitor_service.RefreshUserAgent(); err != nil {
+		return err
 	}
 
 	return nil

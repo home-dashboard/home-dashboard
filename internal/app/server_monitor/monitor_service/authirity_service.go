@@ -1,7 +1,7 @@
 package monitor_service
 
 import (
-	"errors"
+	"github.com/go-errors/errors"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_db"
 	"github.com/siaikin/home-dashboard/internal/app/server_monitor/monitor_model"
 	"github.com/siaikin/home-dashboard/internal/pkg/authority"
@@ -9,21 +9,25 @@ import (
 
 var userModel = monitor_model.User{}
 
-func GetUserByName(username string) (*monitor_model.User, error) {
+var (
+	ErrorNotFound = errors.New("not found")
+)
+
+func GetUserByName(username string) (monitor_model.User, error) {
 	return GetUser(monitor_model.User{User: authority.User{Username: username}})
 }
 
-func GetUser(user monitor_model.User) (*monitor_model.User, error) {
-
+func GetUser(query monitor_model.User) (monitor_model.User, error) {
 	db := monitor_db.GetDB()
 
-	count, _ := CountUser()
+	count, _ := CountUser(query)
 
-	if *count > 0 {
-		result := db.Where(&user).First(&user)
-		return &user, result.Error
+	user := monitor_model.User{}
+	if count > 0 {
+		result := db.Model(&userModel).Where(&query).First(&user)
+		return user, result.Error
 	} else {
-		return nil, errors.New("not found")
+		return user, ErrorNotFound
 	}
 }
 
@@ -52,11 +56,11 @@ func DeleteUser(user monitor_model.User) error {
 }
 
 // CountUser 获取 User 记录的总条数
-func CountUser() (*int64, error) {
+func CountUser(user monitor_model.User) (int64, error) {
 	db := monitor_db.GetDB()
 
 	count := int64(0)
-	result := db.Model(&userModel).Count(&count)
+	result := db.Model(&userModel).Where(user).Count(&count)
 
-	return &count, result.Error
+	return count, result.Error
 }

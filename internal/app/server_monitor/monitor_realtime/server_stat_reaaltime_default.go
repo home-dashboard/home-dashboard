@@ -2,9 +2,7 @@
 
 package monitor_realtime
 
-import (
-	"errors"
-)
+import "github.com/go-errors/errors"
 
 func getAdaptersInfo() (SystemNetworkAdapterInfoList, error) {
 	return nil, errors.New("not implement!")

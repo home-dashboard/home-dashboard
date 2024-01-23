@@ -1,7 +1,7 @@
 package overseer
 
 import (
-	"fmt"
+	"github.com/go-errors/errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/overseer/fetcher"
 	"github.com/siaikin/home-dashboard/internal/pkg/utils"
@@ -52,7 +52,7 @@ func New(config Config) *Overseer {
 
 func Get() (*Overseer, error) {
 	if overseer == nil {
-		return nil, fmt.Errorf("overseer is not initialized, please call overseer.New() first")
+		return nil, errors.Errorf("overseer is not initialized, please call overseer.New() first")
 	}
 	return overseer, nil
 }
@@ -104,7 +104,7 @@ type Overseer struct {
 // - 如果当前进程是 manager 进程, 则会执行 manager 函数, 并阻塞当前进程, 直到接收到系统中断信号.
 func (o *Overseer) Run(program ProgramFunc) (func(ctx context.Context), error) {
 	if err := validateConfig(&o.Config); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
+		return nil, errors.Errorf("invalid config: %w", err)
 	}
 	setDefaultConfig(&o.Config)
 
@@ -129,7 +129,7 @@ func (o *Overseer) Upgrade(fetcherName string) error {
 	} else {
 		go func() {
 			if err := o.manager.Upgrade(fetcherName); err != nil {
-				logger.Error("upgrade failed: %v", err)
+				logger.Error("upgrade failed: %w", err)
 			}
 		}()
 		return nil
@@ -151,7 +151,7 @@ func (o *Overseer) LatestVersionInfo() (*fetcher.AssetInfo, error) {
 		return o.rpcClient.LatestVersionInfo()
 	} else {
 		if o.manager.LatestAssetInfo == nil {
-			return nil, fmt.Errorf("no latest version info")
+			return nil, errors.Errorf("no latest version info")
 		} else {
 			return o.manager.LatestAssetInfo, nil
 		}
@@ -197,14 +197,14 @@ func (o *Overseer) runManager(immediate bool) (func(ctx context.Context), error)
 
 func (o *Overseer) initialRpcClient() error {
 	if o.rpcClient != nil {
-		return fmt.Errorf("rpc client already initial")
+		return errors.Errorf("rpc client already initial")
 	}
 
-	if client, err := rpc.Dial("tcp", ":"+strconv.FormatInt(int64(o.Config.Port), 10)); err != nil {
-		return err
-	} else {
-		o.rpcClient = &upgradeServiceClient{Client: client, OverseerInstance: o}
+	client, err := rpc.Dial("tcp", ":"+strconv.FormatInt(int64(o.Config.Port), 10))
+	if err != nil {
+		return errors.New(err)
 	}
+	o.rpcClient = &upgradeServiceClient{Client: client, OverseerInstance: o}
 
 	return nil
 }
@@ -212,7 +212,7 @@ func (o *Overseer) initialRpcClient() error {
 // initialRpcServer 注册 rpc 服务并在 Config.Port 端口上监听请求. 返回一个函数, 调用以关闭端口监听.
 func (o *Overseer) initialRpcServer() (func(), error) {
 	if o.rpcServer != nil {
-		return nil, fmt.Errorf("rpc server already initial")
+		return nil, errors.Errorf("rpc server already initial")
 	}
 
 	server := rpc.NewServer()
@@ -223,7 +223,7 @@ func (o *Overseer) initialRpcServer() (func(), error) {
 
 	listener, err := utils.ListenTCPAddress(":" + strconv.FormatInt(int64(o.Config.Port), 10))
 	if err != nil {
-		return nil, err
+		return nil, errors.New(err)
 	}
 	go server.Accept(listener)
 
@@ -235,11 +235,11 @@ func (o *Overseer) initialRpcServer() (func(), error) {
 // runWithSameProcess worker 和 manager 在同一个进程中运行
 func (o *Overseer) runWithSameProcess(program ProgramFunc) (func(ctx context.Context), error) {
 	if path, err := os.Executable(); err != nil {
-		return nil, err
+		return nil, errors.New(err)
 	} else if hash, err := utils.MD5File(path); err != nil {
-		return nil, err
+		return nil, errors.New(err)
 	} else if err := os.Setenv(envShortBinHash, hash[len(hash)-8:]); err != nil {
-		return nil, err
+		return nil, errors.New(err)
 	} else {
 		_ = os.Setenv(envIsWorkerProcess, "true")
 		_ = os.Setenv(envIsManagerProcess, "true")
@@ -262,7 +262,7 @@ func (o *Overseer) runWithSameProcess(program ProgramFunc) (func(ctx context.Con
 
 func validateConfig(config *Config) error {
 	if config.Addresses == nil {
-		return fmt.Errorf("addresses required")
+		return errors.Errorf("addresses required")
 	}
 	return nil
 }

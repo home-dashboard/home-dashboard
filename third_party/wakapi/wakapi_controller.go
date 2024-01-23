@@ -29,17 +29,18 @@ func GetStats(c *gin.Context) {
 	var err error
 
 	if err = c.ShouldBindQuery(&body); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "bind query params failed, %w", err))
-		panic(err)
+		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.EntityValidationError, err.Error()))
+		return
 	}
 
-	_range := c.Param("range")
+	timeRange := c.Param("range")
 	// 从上下文中获取 userId , 作为请求路径的一部分.
 	// 也可以使用 "current" 表示当前用户.
 	userId, _ := c.Get("userId")
 
-	if req, err := client.Get(strings.Join([]string{"compat/wakatime/v1/users/", userId.(string), "/stats/", _range}, "")); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "create request failed, %w", err))
+	if req, err := client.Get(strings.Join([]string{"compat/wakatime/v1/users/", userId.(string), "/stats/", timeRange}, "")); err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+		return
 	} else {
 		client.AppendQueryParams(req, url.Values{
 			"project":          []string{body.Project},
@@ -51,9 +52,11 @@ func GetStats(c *gin.Context) {
 		})
 
 		if res, err := client.Send(req); err != nil {
-			_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "send request failed, %w", err))
+			_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+			return
 		} else if str, err := client.ReadAsString(res); err != nil {
-			_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "read response failed, %w", err))
+			_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+			return
 		} else {
 			c.String(http.StatusOK, str)
 		}
@@ -69,19 +72,27 @@ func GetProjectList(c *gin.Context) {
 	var body projectListQueryParams
 
 	if err := c.ShouldBindQuery(&body); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "bind query params failed, %w", err))
-		panic(err)
+		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.EntityValidationError, err.Error()))
+		return
 	}
 
-	if req, err := client.Get("compat/wakatime/v1/users/current/projects"); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "create request failed, %w", err))
-	} else if res, err := client.Send(req); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "send request failed, %w", err))
-	} else if str, err := client.ReadAsString(res); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "read response failed, %w", err))
-	} else {
-		c.String(http.StatusOK, str)
+	req, err := client.Get("compat/wakatime/v1/users/current/projects")
+	if err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+		return
 	}
+	res, err := client.Send(req)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+		return
+	}
+	str, err := client.ReadAsString(res)
+	if err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+		return
+	}
+
+	c.String(http.StatusOK, str)
 }
 
 // summariesQueryParams 获取 Wakapi 摘要数据的查询参数. 详情见 [get-wakatime-summaries].
@@ -97,12 +108,13 @@ func GetSummaries(c *gin.Context) {
 	var err error
 
 	if err = c.ShouldBindQuery(&body); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "bind query params failed, %w", err))
-		panic(err)
+		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.EntityValidationError, err.Error()))
+		return
 	}
 
 	if req, err := client.Get("compat/wakatime/v1/users/current/summaries"); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "create request failed, %w", err))
+		_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+		return
 	} else {
 		startTime := time.UnixMilli(body.Start)
 		endTime := time.UnixMilli(body.End)
@@ -118,12 +130,18 @@ func GetSummaries(c *gin.Context) {
 			"label":            []string{body.Label},
 		})
 
-		if res, err := client.Send(req); err != nil {
-			_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "send request failed, %w", err))
-		} else if str, err := client.ReadAsString(res); err != nil {
-			_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, "read response failed, %w", err))
-		} else {
-			c.String(http.StatusOK, str)
+		res, err := client.Send(req)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+			return
 		}
+
+		str, err := client.ReadAsString(res)
+		if err != nil {
+			_ = c.AbortWithError(http.StatusBadRequest, comfy_errors.NewResponseError(comfy_errors.UnknownError, err.Error()))
+			return
+		}
+
+		c.String(http.StatusOK, str)
 	}
 }

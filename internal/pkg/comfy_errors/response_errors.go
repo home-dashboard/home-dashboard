@@ -2,6 +2,7 @@ package comfy_errors
 
 import (
 	"fmt"
+	"github.com/go-errors/errors"
 )
 
 type ResponseError struct {
@@ -10,10 +11,10 @@ type ResponseError struct {
 }
 
 func NewResponseError(code ResponseErrorCode, message string, a ...any) ResponseError {
-	err := comfyError{fmt.Errorf(message, a...)}
+	err := comfyError{errors.Wrap(fmt.Errorf(message, a...), 1)}
 
 	return ResponseError{
-		ComfyError: ComfyError{Err: err},
+		ComfyError: ComfyError{err},
 		Code:       code,
 	}
 }

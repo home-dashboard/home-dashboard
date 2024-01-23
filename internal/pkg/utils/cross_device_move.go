@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"fmt"
+	"github.com/go-errors/errors"
 	"io"
 	"os"
 	"strings"
@@ -25,7 +25,7 @@ func Move(source, destination string) error {
 	//fmt.Printf("move %s to %s cross device\n", source, destination)
 	src, err := os.Open(source)
 	if err != nil {
-		return fmt.Errorf("open source file error: %w", err)
+		return errors.Errorf("open source file error: %w", err)
 	}
 	defer func() {
 		_ = src.Close()
@@ -33,7 +33,7 @@ func Move(source, destination string) error {
 
 	dst, err := os.Create(destination)
 	if err != nil {
-		return fmt.Errorf("create destination file error: %w", err)
+		return errors.Errorf("create destination file error: %w", err)
 	}
 	defer func() {
 		_ = dst.Close()
@@ -42,25 +42,25 @@ func Move(source, destination string) error {
 	if _, err = io.Copy(dst, src); err != nil {
 		_ = dst.Close()
 		_ = os.Remove(destination)
-		return fmt.Errorf("copy file error: %w", err)
+		return errors.Errorf("copy file error: %w", err)
 	}
 
 	sourceStat, err := os.Stat(source)
 	if err != nil {
 		_ = dst.Close()
 		_ = os.Remove(destination)
-		return fmt.Errorf("stat source file error: %w", err)
+		return errors.Errorf("stat source file error: %w", err)
 	}
 	err = os.Chmod(destination, sourceStat.Mode())
 	if err != nil {
 		_ = dst.Close()
 		_ = os.Remove(destination)
-		return fmt.Errorf("chmod destination file error: %w", err)
+		return errors.Errorf("chmod destination file error: %w", err)
 	}
 
 	_ = src.Close()
 	if err := os.Remove(source); err != nil {
-		return fmt.Errorf("remove source file error: %w", err)
+		return errors.Errorf("remove source file error: %w", err)
 	}
 
 	return nil

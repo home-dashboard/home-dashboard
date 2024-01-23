@@ -1,11 +1,12 @@
 package configuration
 
 import (
+	"github.com/go-errors/errors"
 	"github.com/jinzhu/copier"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 )
 
-var logger = comfy_log.New("configuration")
+var logger = comfy_log.New("[configuration]")
 
 var config *Configuration
 
@@ -16,12 +17,13 @@ func merge() *Configuration {
 	fileConfig := parseFile()
 
 	merged := Configuration{}
+
 	copyOption := copier.Option{IgnoreEmpty: true, DeepCopy: true}
 	if err := copier.CopyWithOption(&merged, &fileConfig, copyOption); err != nil {
-		logger.Fatal("file config merge failed, %s\n", err)
+		logger.Error("file config merge failed, %w\n", errors.New(err))
 	}
 	if err := copier.CopyWithOption(&merged, &argumentsConfig, copyOption); err != nil {
-		logger.Fatal("arguments config merge failed, %s\n", err)
+		logger.Error("arguments config merge failed, %w\n", errors.New(err))
 	}
 
 	return &merged

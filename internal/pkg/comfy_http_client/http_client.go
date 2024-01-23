@@ -1,6 +1,7 @@
 package comfy_http_client
 
 import (
+	"github.com/go-errors/errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -39,7 +40,7 @@ func (c *Client) Get(path string) (*http.Request, error) {
 	req, err := http.NewRequest("GET", path, nil)
 	c.AppendHeader(req, c.Header)
 
-	return req, err
+	return req, errors.New(err)
 }
 
 // Post 创建 Post 请求, path 同 Get 中的 path.
@@ -49,7 +50,7 @@ func (c *Client) Post(path string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest("POST", path, body)
 	c.AppendHeader(req, c.Header)
 
-	return req, err
+	return req, errors.New(err)
 }
 
 // Put 创建 Put 请求, path 同 Get 中的 path.
@@ -59,7 +60,7 @@ func (c *Client) Put(path string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest("PUT", path, body)
 	c.AppendHeader(req, c.Header)
 
-	return req, err
+	return req, errors.New(err)
 }
 
 // Delete 创建 Delete 请求, path 同 Get 中的 path.
@@ -69,7 +70,7 @@ func (c *Client) Delete(path string) (*http.Request, error) {
 	req, err := http.NewRequest("DELETE", path, nil)
 	c.AppendHeader(req, c.Header)
 
-	return req, err
+	return req, errors.New(err)
 }
 
 // AppendQueryParams 设置 [url.URL.RawQuery] 属性
@@ -90,14 +91,15 @@ func (c *Client) AppendHeader(request *http.Request, header http.Header) {
 
 // Send 发送请求
 func (c *Client) Send(request *http.Request) (*http.Response, error) {
-	return c.client.Do(request)
+	res, err := c.client.Do(request)
+	return res, errors.New(err)
 }
 
 // ReadAsString 将响应结果读取为字符串
 func (c *Client) ReadAsString(response *http.Response) (string, error) {
 	builder := strings.Builder{}
 	if _, err := io.Copy(&builder, response.Body); err != nil {
-		return "", err
+		return "", errors.New(err)
 	} else {
 		return builder.String(), nil
 	}
@@ -117,7 +119,7 @@ func (c *Client) joinIfRelativePath(path string) (string, error) {
 
 	baseUrl, err := url.ParseRequestURI(c.BaseUrl)
 	if err != nil {
-		return path, err
+		return path, errors.New(err)
 	}
 
 	if len(path) <= 0 {

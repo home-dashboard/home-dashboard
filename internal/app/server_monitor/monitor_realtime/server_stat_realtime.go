@@ -29,17 +29,11 @@ func getSystemRealtimeStatic() *SystemRealtimeStat {
 	vm, err := psuMem.VirtualMemory()
 	if err == nil {
 		systemStat.Memory.VirtualMemory = vm
-		//if err := mergo.Merge(&systemStat.Memory.VirtualMemory, vm); err != nil {
-		//	fmt.Println("virtual memory merge failed. ", err)
-		//}
 	}
 
 	sm, err := psuMem.SwapMemory()
 	if err == nil {
 		systemStat.Memory.SwapMemory = sm
-		//if err := mergo.Merge(&systemStat.Memory.SwapMemory, sm); err != nil {
-		//	fmt.Println("swap memory merge failed. ", err)
-		//}
 	}
 
 	ifMap := map[string]int{}

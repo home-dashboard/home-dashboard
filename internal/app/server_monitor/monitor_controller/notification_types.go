@@ -1,4 +1,4 @@
-package notification
+package monitor_controller
 
 import (
 	"encoding/gob"

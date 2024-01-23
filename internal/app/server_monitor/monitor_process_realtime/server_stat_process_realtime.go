@@ -2,7 +2,7 @@ package monitor_process_realtime
 
 import (
 	"context"
-	"fmt"
+	"github.com/go-errors/errors"
 	psuProc "github.com/shirou/gopsutil/v3/process"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_log"
 	"github.com/siaikin/home-dashboard/internal/pkg/notification"
@@ -91,39 +91,39 @@ func fillProcessStat(stat *ProcessRealtimeStat, proc *psuProc.Process) []error {
 	stat.Pid = proc.Pid
 
 	if percent, err := proc.MemoryPercent(); err != nil {
-		errs = append(errs, fmt.Errorf("process get memory percent failed, %s\n", err))
-		errs = append(errs, fmt.Errorf("process get memory percent failed, %s\n", err))
+		errs = append(errs, errors.Errorf("process get memory percent failed, %s\n", err))
+		errs = append(errs, errors.Errorf("process get memory percent failed, %s\n", err))
 	} else {
 		stat.MemoryPercent = percent
 	}
 
 	if percent, err := proc.Percent(0); err != nil {
-		errs = append(errs, fmt.Errorf("process get cpu percent failed, %s\n", err))
+		errs = append(errs, errors.Errorf("process get cpu percent failed, %s\n", err))
 	} else {
 		count := runtime.NumCPU()
 		stat.CpuPercent = percent / float64(count)
 	}
 
 	//if size, err := proc.NumThreads(); err != nil {
-	//	errs = append(errs, fmt.Errorf("process get thread size failed, %s\n", err))
+	//	errs = append(errs, errors.Errorf("process get thread size failed, %s\n", err))
 	//} else {
 	//	stat.ThreadSize = size
 	//}
 
 	if name, err := proc.Name(); err != nil {
-		errs = append(errs, fmt.Errorf("process get name failed, %s\n", err))
+		errs = append(errs, errors.Errorf("process get name failed, %s\n", err))
 	} else {
 		stat.Name = name
 	}
 
 	if createTime, err := proc.CreateTime(); err != nil {
-		errs = append(errs, fmt.Errorf("process get create time failed, %s\n", err))
+		errs = append(errs, errors.Errorf("process get create time failed, %s\n", err))
 	} else {
 		stat.CreateTime = createTime
 	}
 
 	if username, err := proc.Username(); err != nil {
-		errs = append(errs, fmt.Errorf("process get username failed, %s\n", err))
+		errs = append(errs, errors.Errorf("process get username failed, %s\n", err))
 	} else {
 		stat.Username = username
 	}
@@ -142,6 +142,7 @@ func GetRealtimeStat(max int) ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
 	return processStatList[0:max], relationship
 }
 
+// SortByMemoryUsage 按内存使用率降序排序, 返回最大 max 个进程的实时统计信息.
 func SortByMemoryUsage(max int) ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
 	length := len(processStatList)
 	copied := make([]*ProcessRealtimeStat, length)
@@ -157,6 +158,7 @@ func SortByMemoryUsage(max int) ([]*ProcessRealtimeStat, map[int32]*ProcessNode)
 	return copied[0:max], relationship
 }
 
+// SortByCpuUsage 按 CPU 使用率降序排序, 返回最大 max 个进程的实时统计信息.
 func SortByCpuUsage(max int) ([]*ProcessRealtimeStat, map[int32]*ProcessNode) {
 	length := len(processStatList)
 	copied := make([]*ProcessRealtimeStat, length)

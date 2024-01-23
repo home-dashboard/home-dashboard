@@ -2,6 +2,7 @@ package wakapi
 
 import (
 	"encoding/base64"
+	"github.com/go-errors/errors"
 	"github.com/siaikin/home-dashboard/internal/pkg/comfy_http_client"
 	"github.com/siaikin/home-dashboard/internal/pkg/configuration"
 	"net/http"
@@ -27,7 +28,7 @@ func httpClientInitial() error {
 	apiUrl = strings.Trim(config.ApiUrl, "/")
 
 	if _client, err := comfy_http_client.New(apiUrl, http.Header{"authorization": []string{authorization}}, time.Second*10); err != nil {
-		return err
+		return errors.New(err)
 	} else {
 		client = _client
 	}

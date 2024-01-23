@@ -23,8 +23,8 @@ func DeviceInfo(context *gin.Context) {
 	var body DeviceInfoRequest
 
 	if err := context.ShouldBindQuery(&body); err != nil {
-		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		panic(err)
+		respondUnknownError(context, err.Error())
+		return
 	}
 
 	switch body.Type {
@@ -32,10 +32,8 @@ func DeviceInfo(context *gin.Context) {
 		context.JSON(http.StatusOK, gin.H{Cpu: monitor_service.GetCpuInfo()})
 	case Disk:
 		context.JSON(http.StatusOK, gin.H{Disk: monitor_service.GetDiskInfo()})
-		break
 	case NetworkAdapter:
 		context.JSON(http.StatusOK, gin.H{NetworkAdapter: monitor_service.GetNetworkAdapterInfo()})
-		break
 	case All:
 	default:
 		context.JSON(http.StatusOK, gin.H{
@@ -43,6 +41,5 @@ func DeviceInfo(context *gin.Context) {
 			Cpu:            monitor_service.GetCpuInfo(),
 			Disk:           monitor_service.GetDiskInfo(),
 		})
-		break
 	}
 }
