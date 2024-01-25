@@ -33,12 +33,12 @@ func init() {
 	// todo: 补充测试用例.
 	// 1. 到达指定时间时创建新的日志文件并将其后的输出日志写入新的日志文件.
 
+	// 初始化时立即获取今天的日志文件
+	replaceLogFile()
+
 	// 每天 00:00:00 时替换日志文件.
 	go func(context context.Context) {
 		timer := time.NewTimer(getReplaceLogFileDuration())
-
-		// 初始化时立即获取今天的日志文件
-		replaceLogFile()
 
 		for {
 			select {
