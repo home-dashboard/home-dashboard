@@ -32,6 +32,11 @@ var logger = comfy_log.New("[server_monitor]")
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	// 拦截标准输出, 分流到日志文件和控制台
+	if err := comfy_log.InterceptStandardOutput(); err != nil {
+		logger.Fatal("intercept standard output failed. %v\n", err)
+	}
+
 	flag.Parse()
 
 	config := configuration.Get()
