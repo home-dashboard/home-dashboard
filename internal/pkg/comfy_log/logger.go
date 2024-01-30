@@ -69,7 +69,7 @@ func (l *Logger) Panic(format string, v ...any) {
 }
 
 func (l *Logger) output(s string) string {
-	err := l.stdout.Output(2, s)
+	err := l.stdout.Output(3, s)
 	if err != nil {
 		l.Panic(err.Error())
 	}
