@@ -66,7 +66,7 @@ func sendTerminalSignal(proc *os.Process) error {
 	}
 	r, _, err := p.Call(syscall.CTRL_BREAK_EVENT, uintptr(proc.Pid))
 	if r == 0 {
-		return errors.New(err)
+		return err
 	}
 
 	return nil

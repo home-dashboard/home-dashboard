@@ -60,8 +60,11 @@ func (w worker) Initial(ctx context.Context) error {
 	}
 
 	managerProc, err := psuProc.NewProcess(int32(os.Getpid()))
-	if running, err := managerProc.IsRunning(); running != true || err != nil {
+	running, err := managerProc.IsRunning()
+	if err != nil {
 		return errors.New(err)
+	} else if !running {
+		return errors.Errorf("manager process is not running: %w", err)
 	}
 
 	// windows 不支持进程间信号通知.

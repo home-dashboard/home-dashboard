@@ -14,8 +14,11 @@ type upgradeServiceClient struct {
 
 func (c *upgradeServiceClient) Upgrade(fetcherName string) error {
 	var reply string
-	err := c.Call(upgradeServiceName+".Upgrade", fetcherName, &reply)
-	return errors.New(err)
+	if err := c.Call(upgradeServiceName+".Upgrade", fetcherName, &reply); err != nil {
+		return errors.New(err)
+	}
+
+	return nil
 }
 
 func (c *upgradeServiceClient) Status() (Status, error) {
